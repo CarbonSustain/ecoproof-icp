@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "src/ecoproof-icp-backend"
+]
+resolver = "2"

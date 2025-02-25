@@ -1,0 +1,25 @@
+{
+  "canisters": {
+    "ecoproof-icp-backend": {
+      "candid": "src/ecoproof-icp-backend/ecoproof-icp-backend.did",
+      "package": "ecoproof-icp-backend",
+      "type": "rust"
+    }, 
+    "https_outbound_canister": {
+      "candid": "src/ecoproof-icp-backend/ecoproof-icp-backend.did",
+      "package": "ecoproof-icp-backend",
+      "type": "rust",
+      "http_outcalls": {
+        "allow": ["https://example.com"]
+      }
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
