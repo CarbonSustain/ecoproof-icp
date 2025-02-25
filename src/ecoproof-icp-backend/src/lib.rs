@@ -1,42 +1,49 @@
-use ic_cdk::api;
-use serde::{Deserialize, Serialize};
+use ic_cdk::api::management_canister::http_request::{
+    HttpMethod, CanisterHttpRequestArgument
+};
+use ic_cdk_macros::update;
+use num_traits::cast::ToPrimitive;
 
-#[derive(Serialize, Deserialize)]
-struct HttpRequest {
-    pub url: String,
-    pub method: String,
-    pub headers: Vec<(String, String)>,
-    pub body: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct HttpResponse {
-    pub status: u16,
-    pub headers: Vec<(String, String)>,
-    pub body: Vec<u8>,
-}
-
-/// A query method to perform an outbound HTTPS GET call.
-#[ic_cdk_macros::query]
+/// `fetch_https` function sends an HTTP GET request to the given URL and returns the response.
+#[update]
 async fn fetch_https(url: String) -> Result<String, String> {
-    // Build the HTTP request structure.
-    let request = HttpRequest {
+    // HTTP 요청 구성
+    let request = CanisterHttpRequestArgument {
         url: url.clone(),
-        method: "GET".to_string(),
+        method: HttpMethod::GET,
+        body: None,
+        max_response_bytes: None,
+        transform: None,
         headers: vec![],
-        body: vec![],
     };
 
-    // Call the management canister's "http_request" method.
-    let result: Result<HttpResponse, (i32, String)> =
-        api::call::call("rrkah-fqaaa-aaaaa-aaaaq-cai", "http_request", (request,))
-            .await
-            .map_err(|(code, msg)| format!("Call error {}: {}", code, msg))?;
-
-    // Check the response and convert the body from bytes to String.
-    if result.status == 200 {
-        String::from_utf8(result.body).map_err(|e| format!("UTF8 conversion error: {}", e))
-    } else {
-        Err(format!("HTTP request failed with status: {}", result.status))
+    // Call the IC management canister for HTTP request
+    match ic_cdk::api::management_canister::http_request::http_request(
+        request,
+        1_000_000_000_000, // 1T cycles
+    )
+    .await
+    {
+        Ok((response,)) => {
+            // BigUint를 u64로 변환하여 비교
+            let status_code = match response.status.0.to_u64() {
+                Some(code) => code,
+                None => 0,
+            };
+            
+            if status_code >= 200 && status_code < 300 {
+                String::from_utf8(response.body)
+                    .map_err(|e| format!("Failed to decode response as UTF-8: {}", e))
+            } else {
+                Err(format!(
+                    "HTTP request failed with status code: {}",
+                    status_code
+                ))
+            }
+        }
+        Err((code, msg)) => Err(format!(
+            "HTTP request failed with code {:?} and message: {}",
+            code, msg
+        )),
     }
 }

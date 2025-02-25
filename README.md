@@ -1,9 +1,14 @@
 # `ecoproof-icp`
 
-- dfx start
+- dfx stop
+- dfx start --clean --background
 - dfx canister create https_outbound_canister
 - dfx canister create ecoproof-icp-backend
 - dfx build
+- dfx deploy
+
+- then:
+- dfx canister call ecoproof-icp-backend fetch_https '( "https://api.exchange.coinbase.com/products/ICP-USD/ticker" )'
 
 Welcome to your new `ecoproof-icp` project and to the Internet Computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.
 
