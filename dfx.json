@@ -6,7 +6,7 @@
       "type": "rust"
     }, 
     "https_outbound_canister": {
-      "candid": "src/ecoproof-icp-backend/ecoproof-icp-backend.did",
+      "candid": "src/https_outbound_canister/https_outbound_canister.did",
       "package": "ecoproof-icp-backend",
       "type": "rust",
       "http_outcalls": {
