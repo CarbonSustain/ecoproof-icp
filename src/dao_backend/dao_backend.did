@@ -1,0 +1,9 @@
+service : {
+  submit_weather_data : (text, text, float64, float64) -> (nat64);
+  vote_on_data : (text, nat64, bool) -> (text);
+  reward_user : (nat64) -> (text);
+  get_balance : (text) -> (nat);
+  update_score : (text) -> ();
+  get_sustainability_score : (text) -> (nat);
+  claim_rewards : (text) -> (text);
+}

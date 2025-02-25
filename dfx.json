@@ -12,6 +12,11 @@
       "http_outcalls": {
         "allow": ["https://example.com"]
       }
+    },
+    "dao_backend": {
+      "candid": "src/dao_backend/dao_backend.did",
+      "package": "ecoproof-icp-backend",
+      "type": "rust"    
     }
   },
   "defaults": {
