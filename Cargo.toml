@@ -1,5 +1,8 @@
 [workspace]
 members = [
-    "src/ecoproof-icp-backend"
+    "src/ecoproof-icp-backend",
+    "src/dao_backend"
+
 ]
 resolver = "2"
+

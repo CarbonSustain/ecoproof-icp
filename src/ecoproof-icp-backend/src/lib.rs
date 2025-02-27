@@ -11,7 +11,7 @@ use ic_cdk_macros::{init, update};
 fn init() {
     ic_cdk::println!("Canister initialized. Starting timer to call API every 30 seconds.");
     // Set a timer interval for every 30 seconds.
-    set_timer_interval(Duration::from_secs(30), || {
+    set_timer_interval(Duration::from_secs(300), || {
         // Spawn an asynchronous task for the HTTP request.
         ic_cdk::spawn(async {
             // TODO: need to update API for our real API !

@@ -4,7 +4,7 @@
       "candid": "src/ecoproof-icp-backend/ecoproof-icp-backend.did",
       "package": "ecoproof-icp-backend",
       "type": "rust"
-    }, 
+    },
     "https_outbound_canister": {
       "candid": "src/https_outbound_canister/https_outbound_canister.did",
       "package": "ecoproof-icp-backend",
@@ -14,9 +14,15 @@
       }
     },
     "dao_backend": {
+      "main": "src/dao_backend/src/lib.rs",
       "candid": "src/dao_backend/dao_backend.did",
-      "package": "ecoproof-icp-backend",
-      "type": "rust"    
+      "package": "dao_backend",
+      "type": "rust",
+      "metadata": [
+        {
+          "name": "candid:service"
+        }
+      ]
     }
   },
   "defaults": {
