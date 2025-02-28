@@ -1,9 +1,14 @@
 use ic_cdk::api::time;
-use ic_cdk_macros::{update, query, init};
+use ic_cdk_macros::{update, query, init, pre_upgrade, post_upgrade};
 use candid::{CandidType, Nat};
 use candid::Principal;
 use candid::candid_method;
-use ic_stable_structures::{StableBTreeMap, DefaultMemoryImpl, Storable, storable::Bound};
+use ic_stable_structures::{
+    StableBTreeMap,
+    DefaultMemoryImpl,
+    storable::Bound,
+    memory_manager::{MemoryManager, MemoryId, VirtualMemory},
+};
 use std::borrow::Cow;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
@@ -13,10 +18,12 @@ type VoteId = u64;
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 struct WeatherData {
-    location: String,
-    temperature: f64,
-    humidity: f64,
-    timestamp: u64,
+    latitude: f64,       
+    longitude: f64,      
+    city: String,        
+    temperature: f64,    
+    weather: String,   
+    timestamp: u64,     
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
@@ -121,8 +128,23 @@ impl ic_stable_structures::Storable for TokenBalance {
 }
 
 thread_local! {
-    static SUBMISSIONS: std::cell::RefCell<StableBTreeMap<u64, UserSubmission, DefaultMemoryImpl>> =
-        std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
+    static MEMORY_MANAGER: std::cell::RefCell<MemoryManager<DefaultMemoryImpl>> =
+        std::cell::RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+
+    static SUBMISSIONS: std::cell::RefCell<StableBTreeMap<u64, UserSubmission, VirtualMemory<DefaultMemoryImpl>>> = 
+        std::cell::RefCell::new({
+            let memory = MEMORY_MANAGER.with(|m| {
+                let memory_id = MemoryId::new(0);
+                let mem = m.borrow().get(memory_id);
+                ic_cdk::println!("DEBUG: Allocated memory region {:?}", memory_id);
+                mem
+            });
+
+            StableBTreeMap::init(memory) 
+        });
+
+    // static SUBMISSIONS: std::cell::RefCell<StableBTreeMap<u64, UserSubmission, DefaultMemoryImpl>> =
+    //     std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
 
     // static BALANCES: std::cell::RefCell<StableBTreeMap<UserId, TokenBalance, DefaultMemoryImpl>> =
     //     std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
@@ -133,27 +155,57 @@ thread_local! {
         std::cell::RefCell::new(HashMap::new());
 }
 
+#[pre_upgrade]
+fn pre_upgrade() {
+    let submission_backup: Vec<(u64, UserSubmission)> = SUBMISSIONS.with(|s| {
+        s.borrow().iter().map(|(k, v)| (k, v.clone())).collect()
+    });
+
+    ic_cdk::storage::stable_save((submission_backup,))
+        .expect("Failed to save state before upgrade");
+}
+
+#[post_upgrade]
+fn post_upgrade() {
+    if let Ok((submission_backup, user_backup)) =
+        ic_cdk::storage::stable_restore::<(Vec<(u64, UserSubmission)>, Vec<(UserId, User)>)>()
+    {
+        SUBMISSIONS.with(|s| {
+            let mut s = s.borrow_mut();
+            for (k, v) in submission_backup {
+                s.insert(k, v);
+            }
+        });
+
+        USERS.with(|u| {
+            let mut u = u.borrow_mut();
+            for (k, v) in user_backup {
+                u.insert(k, v);
+            }
+        });
+
+        ic_cdk::println!("✅ INFO: Successfully restored submissions and users after upgrade.");
+    } else {
+        ic_cdk::println!("⚠️ WARNING: Failed to restore submissions or users after upgrade.");
+    }
+}
+
 #[update]
-fn submit_weather_data(user: String, location: String, temperature: f64, humidity: f64) -> u64 {
+fn submit_weather_data(user: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String) -> u64 {
     let timestamp = time();
     
     // let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
 
-    let data_id = SUBMISSIONS.with(|s| {
-        let mut s = s.borrow_mut();
-        let new_id = match s.last_key_value() {
-            Some((last_key, _)) => last_key + 1,  
-            None => 1, 
-        };
-        new_id
-    });
+    let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
 
     let new_data = UserSubmission {
         user: user.clone(),
         data: WeatherData {
-            location,
+            latitude,
+            longitude,
+            city,
             temperature,
-            humidity,
+            weather,
             timestamp,
         },
         rewarded: false,
@@ -170,19 +222,33 @@ fn submit_weather_data(user: String, location: String, temperature: f64, humidit
 }
 
 #[query]
+#[candid_method(query)]
+fn get_all_submissions() -> Vec<UserSubmission> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        let all_data: Vec<UserSubmission> = submissions.iter().map(|(_, v)| v.clone()).collect();
+        
+        ic_cdk::println!("✅ DEBUG: Returning all submissions, count: {}", all_data.len());
+        all_data
+    })
+}
+
+#[query]
 #[candid_method(query)] 
 fn get_submission(data_id: u64) -> Result<UserSubmission, String> {
     SUBMISSIONS.with(|submissions| {
         let submissions = submissions.borrow();
+        let total_count = submissions.len();
+        ic_cdk::println!("DEBUG: Total submissions stored: {}", total_count);
+
         match submissions.get(&data_id) {
             Some(sub) => {
-                ic_cdk::println!("✅ DEBUG: Found submission: {:?}", sub);
+                ic_cdk::println!("✅ DEBUG: Found submission with data_id: {}", data_id);
                 Ok(sub.clone()) 
-                // user.balance
             }
             None => {
-                ic_cdk::println!("❌ ERROR: Submission not found for data_id: {}", data_id);
-                Err("Submission not found.".to_string()) 
+                ic_cdk::println!("❌ ERROR: Submission not found for data_id: {} | Current total: {}", data_id, total_count);
+                Err(format!("Submission {} not found. Total records: {}", data_id, total_count))
             }
         }
     })
@@ -193,7 +259,6 @@ fn get_balance(user_id: UserId) -> u64 {
     USERS.with(|users| {
         let users = users.borrow();
 
-        // ⚠️ USERS가 비어 있으면 바로 0 반환
         if users.is_empty() {
             ic_cdk::println!("❌ ERROR: USERS map is empty, returning 0 for {}", user_id);
             return 0;
@@ -218,85 +283,6 @@ enum RewardResponse {
     Err(String),
 }
 
-// #[update]
-// #[candid_method(update)]
-// fn reward_user(data_id: u64) -> Result<String, String> {
-//     SUBMISSIONS.with(|submissions| {
-//         let mut submissions = submissions.borrow_mut();
-//         let submission = match submissions.get(&data_id) {
-//             Some(sub) => {
-//                 ic_cdk::println!("DEBUG: Found submission: {:?}", sub);
-//                 sub.clone()
-//             },
-//             None => {
-//                 ic_cdk::println!("DEBUG: Submission not found for data_id: {}", data_id);
-//                 return Err("Weather data submission not found.".to_string());
-//             }
-//         };
-
-//         if submission.rewarded {
-//             ic_cdk::println!("DEBUG: Submission already rewarded: {:?}", submission);
-//             return Err("User has already been rewarded for this submission.".to_string());
-//         }
-
-//         let vote_list = VOTES.with(|votes_map| {
-//             let votes_map = votes_map.borrow();
-//             votes_map.get(&data_id).cloned().unwrap_or_default()
-//         });
-        
-//         if vote_list.is_empty() {
-//             ic_cdk::println!("DEBUG: No votes found for submission {}", data_id);
-//             return Err("No votes found for this submission. Cannot determine validity.".to_string());
-//         }
-
-//         let valid_votes = vote_list.iter().filter(|v| v.vote_value).count();
-//         let invalid_votes = vote_list.len() - valid_votes;
-//         ic_cdk::println!("DEBUG: For submission {}: valid_votes: {}, invalid_votes: {}", data_id, valid_votes, invalid_votes);
-
-//         let user_id = submission.user.clone();
-
-//         if valid_votes > invalid_votes {
-//             BALANCES.with(|balances| {
-//                 let mut balances = balances.borrow_mut();
-
-//                 if balances.len() == 0 {
-//                     ic_cdk::println!("ERROR: BALANCES is empty!");
-//                     return 0; 
-//                 }        
-
-//                 match balances.get(&user_id) {
-//                     Some(existing_balance) => {
-//                         let mut balance = existing_balance.clone();
-//                         balance.balance += 10;
-//                         balances.insert(user_id.clone(), balance.clone());
-//                         ic_cdk::println!("DEBUG: Updated balance for user {}: {}", user_id, balance.balance);
-//                     }
-//                     None => {
-//                         let new_balance = TokenBalance { balance: 10 };
-//                         balances.insert(user_id.clone(), new_balance.clone());
-//                         ic_cdk::println!("DEBUG: Created new balance for user {}: {}", user_id, 10);
-//                     }
-//                 }
-            
-//                 match balances.get(&user_id) {
-//                     Some(balance) => {
-//                         ic_cdk::println!("DEBUG: Final balance check for user {}: {}", user_id, balance.balance);
-//                     }
-//                     None => {
-//                         ic_cdk::println!("ERROR: Balance insertion failed for user {}", user_id);
-//                     }
-//                 }
-//             });
-                                    
-//             let mut updated_submission = submission.clone();
-//             updated_submission.rewarded = true;
-//             submissions.insert(data_id, updated_submission);
-//             Ok(format!("User {} rewarded with 10 tokens.", user_id))
-//         } else {
-//             Err("Majority voted the data as invalid, no reward given.".to_string())
-//         }
-//     })
-// }
 #[update]
 #[candid_method(update)]
 fn reward_user(data_id: u64) -> Result<String, String> {

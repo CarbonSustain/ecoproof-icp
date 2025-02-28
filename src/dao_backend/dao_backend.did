@@ -1,7 +1,33 @@
 service : {
-  submit_weather_data : (text, text, float64, float64) -> (nat64);
+  submit_weather_data : (text, float64, float64, text, float64, text) -> (nat64);
   vote_on_data : (text, nat64, bool) -> (text);
   reward_user : (nat64) -> (variant { Ok: text; Err: text });
   get_balance : (text) -> (nat64);
-  get_submission : (nat64) -> (variant { Ok: record { user: text; data: record { location: text; temperature: float64; humidity: float64; timestamp: nat64 }; rewarded: bool }; Err: text });
+  get_submission : (nat64) -> (variant { 
+      Ok: record { 
+        user: text; 
+        data: record { 
+          latitude: float64; 
+          longitude: float64; 
+          city: text; 
+          temperature: float64; 
+          weather: text; 
+          timestamp: nat64 
+        }; 
+        rewarded: bool 
+      }; 
+      Err: text 
+  });
+    get_all_submissions : () -> (vec record { 
+      user: text; 
+      data: record { 
+        latitude: float64; 
+        longitude: float64; 
+        city: text; 
+        temperature: float64; 
+        weather: text; 
+        timestamp: nat64 
+      }; 
+      rewarded: bool 
+  });
 }
