@@ -1,5 +1,7 @@
 # `ecoproof-icp`
 
+- cargo clean
+- cargo update
 - dfx stop
 - dfx start --clean --background
 - dfx canister create https_outbound_canister
