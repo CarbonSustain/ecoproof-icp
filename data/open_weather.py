@@ -1,10 +1,14 @@
 
 import requests
 import os
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
 
 # OpenWeather One Call API 3.0 URL
 BASE_URL = "https://api.openweathermap.org/data/3.0/onecall"
 # BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+
 
 LAT, LON = "39.7791279", "-104.9707305"  # Example: Spork Castle Denver
 
@@ -16,6 +20,7 @@ params = {
     "units": "metric",  # "imperial" for Fahrenheit
     "exclude": "minutely,alerts"  # Exclude unwanted data to optimize response size
 }
+
 
 """
 For 2.5
