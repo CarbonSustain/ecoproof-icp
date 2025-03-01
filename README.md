@@ -6,6 +6,7 @@
 - dfx start --clean --background
 - dfx canister create https_outbound_canister
 - dfx canister create ecoproof-icp-backend
+- dfx canister create --all
 - dfx build
 - dfx deploy
 
