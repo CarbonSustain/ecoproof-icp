@@ -1,6 +1,9 @@
 import requests
 from requests.auth import HTTPBasicAuth
 import os
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
 
 # Define API endpoint
 BASE_URL = "https://api.meteomatics.com"

@@ -2,6 +2,10 @@ import os
 import math
 import requests
 
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
+
 
 def haversine(lat1, lon1, lat2, lon2):
     print(lat1)
@@ -26,6 +30,10 @@ def haversine(lat1, lon1, lat2, lon2):
 
 # NOAA API URL for data endpoint
 url = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
+
+noaa_token = os.environ.get('NOAA_API_TOKEN')
+
+print(noaa_token)
 
 # Set request headers
 headers = {

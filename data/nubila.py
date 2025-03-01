@@ -1,8 +1,11 @@
 import requests
 import os
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
 
-lat_val = 37.2144
-lon_val = -121.8574
+lat_val = 39.7791279
+lon_val = -104.9707305
 url = "https://api.nubila.ai/api/v1/weather"
 headers = {
     "X-Api-Key": os.environ.get('NUBILA_API_TOKEN'),
