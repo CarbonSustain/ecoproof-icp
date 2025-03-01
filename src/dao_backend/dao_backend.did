@@ -1,7 +1,7 @@
 service : {
-  submit_weather_data : (text, float64, float64, text, float64, text) -> (nat64);
+  submit_weather_data : (text, text, float64, float64, text, float64, text) -> (nat64);
   vote_on_data : (text, nat64, bool) -> (text);
-  reward_user : (nat64) -> (variant { Ok: text; Err: text });
+  reward_user : (nat64, text) -> (variant { Ok: text; Err: text });
   get_balance : (text) -> (nat64);
   get_submission : (nat64) -> (variant { 
       Ok: record { 
@@ -18,7 +18,7 @@ service : {
       }; 
       Err: text 
   });
-    get_all_submissions : () -> (vec record { 
+  get_all_submissions : () -> (vec record { 
       user: text; 
       data: record { 
         latitude: float64; 

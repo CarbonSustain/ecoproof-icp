@@ -1,8 +1,9 @@
 [workspace]
 members = [
     "src/ecoproof-icp-backend",
-    "src/dao_backend"
-
+    "src/dao_backend",
+    "src/https_outbound_canister",
+    "src/icrc1_ledger_canister"
 ]
 resolver = "2"
 

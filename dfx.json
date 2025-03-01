@@ -5,14 +5,6 @@
       "package": "ecoproof-icp-backend",
       "type": "rust"
     },
-    "https_outbound_canister": {
-      "candid": "src/https_outbound_canister/https_outbound_canister.did",
-      "package": "ecoproof-icp-backend",
-      "type": "rust",
-      "http_outcalls": {
-        "allow": ["https://example.com"]
-      }
-    },
     "dao_backend": {
       "main": "src/dao_backend/src/lib.rs",
       "candid": "src/dao_backend/dao_backend.did",
@@ -23,6 +15,21 @@
           "name": "candid:service"
         }
       ]
+    },
+    "https_outbound_canister": {
+      "candid": "src/https_outbound_canister/https_outbound_canister.did",
+      "package": "https_outbound_canister",
+      "type": "rust",
+      "http_outcalls": {
+        "allow": ["https://example.com"]
+      }
+    },
+    "icrc1_ledger_canister": {
+      "type": "rust",
+      "package": "icrc1_ledger_canister",  
+      "main": "src/icrc1_ledger_canister/src/lib.rs",
+      "candid": "src/icrc1_ledger_canister/ledger.did",
+      "wasm": "target/wasm32-unknown-unknown/release/icrc1_ledger_canister.wasm"
     }
   },
   "defaults": {
