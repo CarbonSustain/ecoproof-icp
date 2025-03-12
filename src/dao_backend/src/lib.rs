@@ -230,6 +230,7 @@ fn post_upgrade() {
 #[update]
 fn submit_weather_data(telegram_id: String, recipient_address: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String) -> u64 {
     let timestamp = time();
+    ic_cdk::println!("🚀 Received weather submission from {}", telegram_id);
     
     // let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
 
