@@ -40,6 +40,11 @@ struct Vote {
 struct User {
     user_id: UserId,
     balance: u64,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    username: Option<String>,
+    language_code: Option<String>,
+    is_bot: bool,
 }
 
 impl ic_stable_structures::Storable for User {
@@ -180,11 +185,6 @@ thread_local! {
             StableBTreeMap::init(memory) 
         });
 
-    // static SUBMISSIONS: std::cell::RefCell<StableBTreeMap<u64, UserSubmission, DefaultMemoryImpl>> =
-    //     std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
-
-    // static BALANCES: std::cell::RefCell<StableBTreeMap<UserId, TokenBalance, DefaultMemoryImpl>> =
-    //     std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
     static USERS: std::cell::RefCell<StableBTreeMap<UserId, User, DefaultMemoryImpl>> =
         std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
 
@@ -225,6 +225,56 @@ fn post_upgrade() {
     } else {
         ic_cdk::println!("⚠️ WARNING: Failed to restore submissions or users after upgrade.");
     }
+}
+
+// TODO:
+// make create_tg_user function inside of icp/dao-backend
+// if user does not exitst, create; if user exists updates field (when they change their name or language_code)
+#[update]
+#[candid_method(update)]
+fn create_tg_user(telegram_id: String, first_name: String, last_name: String, username: String, language_code: String, is_bot: bool) -> String {
+    USERS.with(|users_map| {
+        let mut users = users_map.borrow_mut();
+        let user_id = telegram_id.clone();
+
+        match users.get(&user_id) {
+            Some(mut user) => {
+                ic_cdk::println!("👤 Existing user found: {}. Updating info.", user_id);
+                user.first_name = Some(first_name);
+                user.last_name = Some(last_name);
+                user.username = Some(username);
+                user.language_code = Some(language_code);
+                user.is_bot = is_bot;
+                users.insert(user_id.clone(), user);
+                format!("Updated user: {}", user_id)
+            }
+            None => {
+                let new_user = User {
+                    user_id: user_id.clone(),
+                    balance: 0,
+                    first_name: Some(first_name),
+                    last_name: Some(last_name),
+                    username: Some(username),
+                    language_code: Some(language_code),
+                    is_bot,
+                };
+                users.insert(user_id.clone(), new_user);
+                ic_cdk::println!("Created new user: {}", user_id);
+                format!("Created new user: {}", user_id)
+            }
+        }
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_all_users() -> Vec<User> {
+    USERS.with(|users_map| {
+        let users = users_map.borrow();
+        let all_users: Vec<User> = users.iter().map(|(_, user)| user.clone()).collect();
+        ic_cdk::println!("✅ DEBUG: Returning all users, count: {}", all_users.len());
+        all_users
+    })
 }
 
 #[update]

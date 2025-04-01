@@ -30,4 +30,21 @@ service : {
       }; 
       rewarded: bool 
   });
+  get_all_users: () -> (vec record {
+    user_id: text;
+    balance: nat64;
+    first_name: opt text;
+    last_name: opt text;
+    username: opt text;
+    language_code: opt text;
+    is_bot: bool;
+  });
+  create_tg_user : (
+    text,       // telegram_id
+    text,       // first_name
+    text,       // last_name
+    text,       // username
+    text,       // language_code
+    bool        // is_bot
+  ) -> (text);
 }
