@@ -64,4 +64,22 @@ service : {
     };
     Err: text
   });
+  get_vote_summary : (nat64) -> (record {
+    data_id: nat64;
+    upvotes: nat32;
+    downvotes: nat32;
+  });
+  get_user_posts: (text) -> (vec record {
+    user: text;
+    data: record {
+      latitude: float64;
+      longitude: float64;
+      city: text;
+      temperature: float64;
+      weather: text;
+      timestamp: nat64;
+      submission_photo_url: text;
+    };
+    rewarded: bool;
+  });
 }

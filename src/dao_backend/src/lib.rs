@@ -36,6 +36,13 @@ struct Vote {
     submission_id: u64,
 }
 
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct VoteSummary {
+    data_id: u64,
+    upvotes: u32,
+    downvotes: u32,
+}
+
 // make another user structure
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
 struct User {
@@ -223,9 +230,9 @@ fn post_upgrade() {
             }
         });
 
-        ic_cdk::println!("✅ INFO: Successfully restored submissions and users after upgrade.");
+        ic_cdk::println!("INFO: Successfully restored submissions and users after upgrade.");
     } else {
-        ic_cdk::println!("⚠️ WARNING: Failed to restore submissions or users after upgrade.");
+        ic_cdk::println!("WARNING: Failed to restore submissions or users after upgrade.");
     }
 }
 
@@ -288,7 +295,7 @@ fn get_all_users() -> Vec<User> {
     USERS.with(|users_map| {
         let users = users_map.borrow();
         let all_users: Vec<User> = users.iter().map(|(_, user)| user.clone()).collect();
-        ic_cdk::println!("✅ DEBUG: Returning all users, count: {}", all_users.len());
+        ic_cdk::println!("DEBUG: Returning all users, count: {}", all_users.len());
         all_users
     })
 }
@@ -333,7 +340,7 @@ fn get_all_submissions() -> Vec<UserSubmission> {
         let submissions = submissions.borrow();
         let all_data: Vec<UserSubmission> = submissions.iter().map(|(_, v)| v.clone()).collect();
         
-        ic_cdk::println!("✅ DEBUG: Returning all submissions, count: {}", all_data.len());
+        ic_cdk::println!("DEBUG: Returning all submissions, count: {}", all_data.len());
         all_data
     })
 }
@@ -348,14 +355,35 @@ fn get_submission(data_id: u64) -> Result<UserSubmission, String> {
 
         match submissions.get(&data_id) {
             Some(sub) => {
-                ic_cdk::println!("✅ DEBUG: Found submission with data_id: {}", data_id);
+                ic_cdk::println!("DEBUG: Found submission with data_id: {}", data_id);
                 Ok(sub.clone()) 
             }
             None => {
-                ic_cdk::println!("❌ ERROR: Submission not found for data_id: {} | Current total: {}", data_id, total_count);
+                ic_cdk::println!("ERROR: Submission not found for data_id: {} | Current total: {}", data_id, total_count);
                 Err(format!("Submission {} not found. Total records: {}", data_id, total_count))
             }
         }
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_user_posts(user_id: String) -> Vec<UserSubmission> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        let user_posts: Vec<UserSubmission> = submissions
+            .iter()
+            .filter(|(_, sub)| sub.user == user_id)
+            .map(|(_, sub)| sub.clone())
+            .collect();
+
+        ic_cdk::println!(
+            "DEBUG: Returning {} posts submitted by user {}",
+            user_posts.len(),
+            user_id
+        );
+
+        user_posts
     })
 }
 
@@ -365,7 +393,7 @@ fn get_balance(user_id: UserId) -> u64 {
         let users = users.borrow();
 
         if users.is_empty() {
-            ic_cdk::println!("❌ ERROR: USERS map is empty, returning 0 for {}", user_id);
+            ic_cdk::println!("ERROR: USERS map is empty, returning 0 for {}", user_id);
             return 0;
         }
 
@@ -387,102 +415,6 @@ enum RewardResponse {
     Ok(String),
     Err(String),
 }
-
-// #[update]
-// #[candid_method(update)]
-// fn reward_user(data_id: u64) -> Result<String, String> {
-//     SUBMISSIONS.with(|submissions| {
-//         let mut submissions = submissions.borrow_mut();
-//         let submission = match submissions.get(&data_id) {
-//             Some(sub) => {
-//                 ic_cdk::println!("✅ DEBUG: Found submission: {:?}", sub);
-//                 sub.clone()
-//             }
-//             None => {
-//                 ic_cdk::println!("❌ ERROR: Submission not found for data_id: {}", data_id);
-//                 return Err("Weather data submission not found.".to_string());
-//             }
-//         };
-
-//         if submission.rewarded {
-//             ic_cdk::println!("⚠️ WARNING: Submission already rewarded: {:?}", submission);
-//             return Err("User has already been rewarded for this submission.".to_string());
-//         }
-
-//         let vote_list = VOTES.with(|votes_map| {
-//             let votes_map = votes_map.borrow();
-//             votes_map.get(&data_id).cloned().unwrap_or_default()
-//         });
-
-//         if vote_list.is_empty() {
-//             ic_cdk::println!("⚠️ WARNING: No votes found for submission {}", data_id);
-//             return Err("No votes found for this submission. Cannot determine validity.".to_string());
-//         }
-
-//         let valid_votes = vote_list.iter().filter(|v| v.vote_value).count();
-//         let invalid_votes = vote_list.len() - valid_votes;
-//         ic_cdk::println!(
-//             "📝 INFO: Submission {} - valid_votes: {}, invalid_votes: {}",
-//             data_id, valid_votes, invalid_votes
-//         );
-
-//         let user_id = submission.user.clone();
-
-//         if valid_votes > invalid_votes {
-//             USERS.with(|users| {
-//                 let mut users = users.borrow_mut();
-
-//                 let user = users.get(&user_id).map(|u| u.clone());
-
-//                 match user {
-//                     Some(mut existing_user) => {
-//                         existing_user.balance += 10;
-//                         users.insert(user_id.clone(), existing_user.clone());
-//                         ic_cdk::println!(
-//                             "✅ DEBUG: Updated balance for user {}: {}",
-//                             user_id, existing_user.balance
-//                         );
-//                     }
-//                     None => {
-//                         let new_user = User {
-//                             user_id: user_id.clone(),
-//                             balance: 10,
-//                         };
-//                         users.insert(user_id.clone(), new_user.clone());
-//                         ic_cdk::println!(
-//                             "🆕 INFO: Created new user balance for {}: {} tokens",
-//                             user_id, new_user.balance
-//                         );
-//                     }
-//                 }
-
-//                 match users.get(&user_id) {
-//                     Some(updated_user) => {
-//                         ic_cdk::println!(
-//                             "🔍 DEBUG: Final balance check for {}: {} tokens",
-//                             user_id, updated_user.balance
-//                         );
-//                     }
-//                     None => {
-//                         ic_cdk::println!("❌ ERROR: Balance update failed for {}", user_id);
-//                     }
-//                 }
-//             });
-
-//             let mut updated_submission = submission.clone();
-//             updated_submission.rewarded = true;
-//             submissions.insert(data_id, updated_submission);
-//             ic_cdk::println!("🎉 SUCCESS: User {} rewarded with 10 tokens.", user_id);
-//             Ok(format!("User {} rewarded with 10 tokens.", user_id))
-//         } else {
-//             ic_cdk::println!(
-//                 "❌ ERROR: Submission {} rejected, majority voted as invalid",
-//                 data_id
-//             );
-//             Err("Majority voted the data as invalid, no reward given.".to_string())
-//         }
-//     })
-// }
 
 // ------------------ NEW ASYNC reward_user with ICRC-1 TRANSFER ------------------
 #[update]
@@ -593,6 +525,24 @@ fn vote_on_data(user_id: String, data_id: u64, vote_value: bool) -> String {
         ic_cdk::println!("DEBUG: Updated vote list for data_id {}: {:?}", data_id, entry);
         
         format!("User {} successfully voted on data {}.", user_id, data_id)
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_vote_summary(data_id: u64) -> VoteSummary {
+    VOTES.with(|votes_map| {
+        let votes_map = votes_map.borrow();
+        let votes = votes_map.get(&data_id).cloned().unwrap_or_default();
+
+        let upvotes = votes.iter().filter(|v| v.vote_value).count() as u32;
+        let downvotes = votes.len() as u32 - upvotes;
+
+        VoteSummary {
+            data_id,
+            upvotes,
+            downvotes,
+        }
     })
 }
 
