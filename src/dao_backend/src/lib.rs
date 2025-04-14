@@ -25,6 +25,7 @@ struct WeatherData {
     temperature: f64,    
     weather: String,   
     timestamp: u64,     
+    submission_photo_url: String,
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
@@ -293,7 +294,7 @@ fn get_all_users() -> Vec<User> {
 }
 
 #[update]
-fn submit_weather_data(telegram_id: String, recipient_address: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String) -> u64 {
+fn submit_weather_data(telegram_id: String, recipient_address: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
     let timestamp = time();
     ic_cdk::println!("🚀 Received weather submission from {}", telegram_id);
     
@@ -310,6 +311,7 @@ fn submit_weather_data(telegram_id: String, recipient_address: String, latitude:
             temperature,
             weather,
             timestamp,
+            submission_photo_url,
         },
         rewarded: false,
     };
