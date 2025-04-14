@@ -9,10 +9,60 @@
 - dfx canister create --all
 - dfx build
 - copy the code below and run in main directory:
-- dfx deploy icrc1_ledger_canister --argument "(variant { Init = record { token_symbol = \"CST\"; token_name = \"CarbonSustain Token\"; minting_account = record { owner = principal \"zqysp-sinpb-fpwv7-tenyi-qfi3z-7jfuh-dlbnc-lwrbk-vckvr-mdwpv-zqe\" }; transfer_fee = 1000; metadata = vec {}; feature_flags = opt record { icrc2 = true }; initial_balances = vec { record { record { owner = principal \"zebce-iomlc-nkbqr-wgnia-dtbv2-2olwr-qbxfa-6intj-pcw72-it3xt-jae\" }; 100000000000 } }; archive_options = record { num_blocks_to_archive = 1000; trigger_threshold = 2000; controller_id = principal \"pdvbi-eykrt-uflfw-oi7h6-mixap-t3ac6-bntie-rskcw-wa2zg-fdhgf-5ae\"; cycles_for_archive_creation = opt 10000000000000 } } })"
+- dfx deploy icrc1_ledger_canister --argument '(
+  variant {
+    Init = record {
+      token_symbol = "CST";
+      token_name = "CarbonSustain Token";
+      minting_account = record {
+        owner = principal "zqysp-sinpb-fpwv7-tenyi-qfi3z-7jfuh-dlbnc-lwrbk-vckvr-mdwpv-zqe"
+      };
+      transfer_fee = 1000;
+      metadata = vec {};
+      feature_flags = opt record { icrc2 = true };
+      initial_balances = vec {
+        record {
+          record { owner = principal "zebce-iomlc-nkbqr-wgnia-dtbv2-2olwr-qbxfa-6intj-pcw72-it3xt-jae" };
+          100_000_000_000
+        }
+      };
+      archive_options = record {
+        num_blocks_to_archive = 1000;
+        trigger_threshold = 2000;
+        controller_id = principal "pdvbi-eykrt-uflfw-oi7h6-mixap-t3ac6-bntie-rskcw-wa2zg-fdhgf-5ae";
+        cycles_for_archive_creation = opt 10_000_000_000_000
+      }
+    }
+  }
+)'
 - cd src/icrc1_ledger_canister
 - Copy and paste code below to deploy icrc1_ledger_canister with Init argument:
-- dfx deploy icrc1_ledger_canister --argument "(variant { Init = record { token_symbol = \"CST\"; token_name = \"CarbonSustain Token\"; minting_account = record { owner = principal \"zqysp-sinpb-fpwv7-tenyi-qfi3z-7jfuh-dlbnc-lwrbk-vckvr-mdwpv-zqe\" }; transfer_fee = 1000; metadata = vec {}; feature_flags = opt record { icrc2 = true }; initial_balances = vec { record { record { owner = principal \"zebce-iomlc-nkbqr-wgnia-dtbv2-2olwr-qbxfa-6intj-pcw72-it3xt-jae\" }; 100000000000 } }; archive_options = record { num_blocks_to_archive = 1000; trigger_threshold = 2000; controller_id = principal \"pdvbi-eykrt-uflfw-oi7h6-mixap-t3ac6-bntie-rskcw-wa2zg-fdhgf-5ae\"; cycles_for_archive_creation = opt 10000000000000 } } })"
+- dfx deploy icrc1_ledger_canister --argument '(
+  variant {
+    Init = record {
+      token_symbol = "CST";
+      token_name = "CarbonSustain Token";
+      minting_account = record {
+        owner = principal "zqysp-sinpb-fpwv7-tenyi-qfi3z-7jfuh-dlbnc-lwrbk-vckvr-mdwpv-zqe"
+      };
+      transfer_fee = 1000;
+      metadata = vec {};
+      feature_flags = opt record { icrc2 = true };
+      initial_balances = vec {
+        record {
+          record { owner = principal "zebce-iomlc-nkbqr-wgnia-dtbv2-2olwr-qbxfa-6intj-pcw72-it3xt-jae" };
+          100_000_000_000
+        }
+      };
+      archive_options = record {
+        num_blocks_to_archive = 1000;
+        trigger_threshold = 2000;
+        controller_id = principal "pdvbi-eykrt-uflfw-oi7h6-mixap-t3ac6-bntie-rskcw-wa2zg-fdhgf-5ae";
+        cycles_for_archive_creation = opt 10_000_000_000_000
+      }
+    }
+  }
+)'
 - cd ../..
 - dfx deploy
 - then:
