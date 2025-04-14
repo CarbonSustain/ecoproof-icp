@@ -1,25 +1,16 @@
+type PostStatus = variant { OPEN; PENDING_PAYMENT; PAID };
+
 service : {
   submit_weather_data : (text, text, float64, float64, text, float64, text, text) -> (nat64);
+
   vote_on_data : (text, nat64, bool) -> (text);
+
   reward_user : (nat64, text) -> (variant { Ok: text; Err: text });
+
   get_balance : (text) -> (nat64);
+
   get_submission : (nat64) -> (variant { 
-      Ok: record { 
-        user: text; 
-        data: record { 
-          latitude: float64; 
-          longitude: float64; 
-          city: text; 
-          temperature: float64; 
-          weather: text; 
-          timestamp: nat64;
-          submission_photo_url: text 
-        }; 
-        rewarded: bool 
-      }; 
-      Err: text 
-  });
-  get_all_submissions : () -> (vec record { 
+    Ok: record { 
       user: text; 
       data: record { 
         latitude: float64; 
@@ -28,47 +19,29 @@ service : {
         temperature: float64; 
         weather: text; 
         timestamp: nat64;
-        submission_photo_url: text 
+        submission_photo_url: text;
       }; 
-      rewarded: bool 
+      rewarded: bool;
+      status: PostStatus;
+    }; 
+    Err: text;
   });
-  get_all_users: () -> (vec record {
-    user_id: text;
-    balance: nat64;
-    first_name: opt text;
-    last_name: opt text;
-    username: opt text;
-    language_code: opt text;
-    is_bot: bool;
-    profile_picture_url: opt text;
+
+  get_all_submissions : () -> (vec record { 
+    user: text; 
+    data: record { 
+      latitude: float64; 
+      longitude: float64; 
+      city: text; 
+      temperature: float64; 
+      weather: text; 
+      timestamp: nat64;
+      submission_photo_url: text;
+    }; 
+    rewarded: bool;
+    status: PostStatus;
   });
-  create_tg_user : (
-    text,       // telegram_id
-    text,       // first_name
-    text,       // last_name
-    text,       // username
-    text,       // language_code
-    bool,        // is_bot
-    text        // profile_picture_url
-  ) -> (text);
-  get_tg_user : (text) -> (variant {
-    Ok: record {
-      user_id: text;
-      balance: nat64;
-      first_name: opt text;
-      last_name: opt text;
-      username: opt text;
-      language_code: opt text;
-      is_bot: bool;
-      profile_picture_url: opt text;
-    };
-    Err: text
-  });
-  get_vote_summary : (nat64) -> (record {
-    data_id: nat64;
-    upvotes: nat32;
-    downvotes: nat32;
-  });
+
   get_user_posts: (text) -> (vec record {
     user: text;
     data: record {
@@ -81,5 +54,47 @@ service : {
       submission_photo_url: text;
     };
     rewarded: bool;
+    status: PostStatus;
   });
-}
+
+  get_all_users: () -> (vec record {
+    user_id: text;
+    balance: nat64;
+    first_name: opt text;
+    last_name: opt text;
+    username: opt text;
+    language_code: opt text;
+    is_bot: bool;
+    profile_picture_url: opt text;
+  });
+
+  create_tg_user : (
+    text,       // telegram_id
+    text,       // first_name
+    text,       // last_name
+    text,       // username
+    text,       // language_code
+    bool,        // is_bot
+    text        // profile_picture_url
+  ) -> (text);
+
+  get_tg_user : (text) -> (variant {
+    Ok: record {
+      user_id: text;
+      balance: nat64;
+      first_name: opt text;
+      last_name: opt text;
+      username: opt text;
+      language_code: opt text;
+      is_bot: bool;
+      profile_picture_url: opt text;
+    };
+    Err: text;
+  });
+
+  get_vote_summary : (nat64) -> (record {
+    data_id: nat64;
+    upvotes: nat32;
+    downvotes: nat32;
+  });
+};

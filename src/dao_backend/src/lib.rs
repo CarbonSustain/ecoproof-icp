@@ -102,6 +102,14 @@ struct UserSubmission {
     user: UserId,
     data: WeatherData,
     rewarded: bool,
+    status: PostStatus, 
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+enum PostStatus {
+    OPEN,
+    PENDING_PAYMENT,
+    PAID,
 }
 
 impl ic_stable_structures::Storable for UserSubmission {
@@ -321,6 +329,7 @@ fn submit_weather_data(telegram_id: String, recipient_address: String, latitude:
             submission_photo_url,
         },
         rewarded: false,
+        status: PostStatus::OPEN,
     };
 
     SUBMISSIONS.with(|s| {
