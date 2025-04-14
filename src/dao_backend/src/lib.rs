@@ -45,6 +45,7 @@ struct User {
     username: Option<String>,
     language_code: Option<String>,
     is_bot: bool,
+    profile_picture_url: Option<String>, 
 }
 
 impl ic_stable_structures::Storable for User {
@@ -232,7 +233,7 @@ fn post_upgrade() {
 // if user does not exitst, create; if user exists updates field (when they change their name or language_code)
 #[update]
 #[candid_method(update)]
-fn create_tg_user(telegram_id: String, first_name: String, last_name: String, username: String, language_code: String, is_bot: bool) -> String {
+fn create_tg_user(telegram_id: String, first_name: String, last_name: String, username: String, language_code: String, is_bot: bool, profile_picture_url: String) -> String {
     USERS.with(|users_map| {
         let mut users = users_map.borrow_mut();
         let user_id = telegram_id.clone();
@@ -245,6 +246,7 @@ fn create_tg_user(telegram_id: String, first_name: String, last_name: String, us
                 user.username = Some(username);
                 user.language_code = Some(language_code);
                 user.is_bot = is_bot;
+                user.profile_picture_url = Some(profile_picture_url);
                 users.insert(user_id.clone(), user);
                 format!("Updated user: {}", user_id)
             }
@@ -257,11 +259,24 @@ fn create_tg_user(telegram_id: String, first_name: String, last_name: String, us
                     username: Some(username),
                     language_code: Some(language_code),
                     is_bot,
+                    profile_picture_url: Some(profile_picture_url),
                 };
                 users.insert(user_id.clone(), new_user);
                 ic_cdk::println!("Created new user: {}", user_id);
                 format!("Created new user: {}", user_id)
             }
+        }
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_tg_user(user_id: String) -> Result<User, String> {
+    USERS.with(|users| {
+        let users = users.borrow();
+        match users.get(&user_id) {
+            Some(user) => Ok(user.clone()),
+            None => Err(format!("User {} not found.", user_id)),
         }
     })
 }

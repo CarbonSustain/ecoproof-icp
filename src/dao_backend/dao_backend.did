@@ -38,6 +38,7 @@ service : {
     username: opt text;
     language_code: opt text;
     is_bot: bool;
+    profile_picture_url: opt text;
   });
   create_tg_user : (
     text,       // telegram_id
@@ -45,6 +46,20 @@ service : {
     text,       // last_name
     text,       // username
     text,       // language_code
-    bool        // is_bot
+    bool,        // is_bot
+    text        // profile_picture_url
   ) -> (text);
+  get_tg_user : (text) -> (variant {
+    Ok: record {
+      user_id: text;
+      balance: nat64;
+      first_name: opt text;
+      last_name: opt text;
+      username: opt text;
+      language_code: opt text;
+      is_bot: bool;
+      profile_picture_url: opt text;
+    };
+    Err: text
+  });
 }
