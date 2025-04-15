@@ -202,8 +202,14 @@ thread_local! {
             StableBTreeMap::init(memory) 
         });
 
-    static USERS: std::cell::RefCell<StableBTreeMap<UserId, User, DefaultMemoryImpl>> =
-        std::cell::RefCell::new(StableBTreeMap::new(DefaultMemoryImpl::default()));
+        static USERS: std::cell::RefCell<StableBTreeMap<UserId, User, VirtualMemory<DefaultMemoryImpl>>> =
+        std::cell::RefCell::new({
+            let memory = MEMORY_MANAGER.with(|m| {
+                let memory_id = MemoryId::new(1);
+                m.borrow().get(memory_id)
+            });
+            StableBTreeMap::init(memory)
+        });
 
     static VOTES: std::cell::RefCell<HashMap<u64, Vec<Vote>>> =
         std::cell::RefCell::new(HashMap::new());
