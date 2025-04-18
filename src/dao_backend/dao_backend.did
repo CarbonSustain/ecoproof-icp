@@ -1,9 +1,22 @@
 type PostStatus = variant { OPEN; PENDING_PAYMENT; PAID };
 
 service : {
-  submit_weather_data : (text, text, float64, float64, text, float64, text, text) -> (nat64);
+  submit_weather_data : (
+    text,     // telegram_id
+    text,     // recipient_address
+    float64,  // latitude
+    float64,  // longitude
+    text,     // city
+    float64,  // temperature
+    text,     // weather
+    text      // submission_photo_url
+  ) -> (nat64);  // returns data_id
 
-  vote_on_data : (text, nat64, bool) -> (text);
+  vote_on_data : (
+    text,   // user_id
+    nat64,  // data_id
+    bool    // vote_value (true = valid, false = invalid)
+  ) -> (text);  // confirmation string
 
   reward_user : (nat64, text) -> (variant { Ok: text; Err: text });
 
