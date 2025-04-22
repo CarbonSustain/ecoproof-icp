@@ -54,6 +54,7 @@ struct User {
     language_code: Option<String>,
     is_bot: bool,
     profile_picture_url: Option<String>, 
+    wallet_address: Option<String>,
 }
 
 impl ic_stable_structures::Storable for User {
@@ -282,6 +283,7 @@ fn create_tg_user(telegram_id: String, first_name: String, last_name: String, us
                     language_code: Some(language_code),
                     is_bot,
                     profile_picture_url: Some(profile_picture_url),
+                    wallet_address: None,
                 };
                 users.insert(user_id.clone(), new_user);
                 ic_cdk::println!("Created new user: {}", user_id);
@@ -303,6 +305,21 @@ fn get_tg_user(user_id: String) -> Result<User, String> {
     })
 }
 
+#[update]
+fn update_wallet_address(user_id: String, wallet_address: String) -> String {
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+        match users.get(&user_id) {
+            Some(mut user) => {
+                user.wallet_address = Some(wallet_address);
+                users.insert(user_id.clone(), user);
+                format!("Wallet address updated for user: {}", user_id)
+            }
+            None => format!("User {} not found", user_id),
+        }
+    })
+}
+
 #[query]
 #[candid_method(query)]
 fn get_all_users() -> Vec<User> {
@@ -315,7 +332,7 @@ fn get_all_users() -> Vec<User> {
 }
 
 #[update]
-fn submit_weather_data(telegram_id: String, recipient_address: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
+fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
     let timestamp = time();
     ic_cdk::println!("🚀 Received weather submission from {}", telegram_id);
     
@@ -434,8 +451,8 @@ enum RewardResponse {
 // ------------------ NEW ASYNC reward_user with ICRC-1 TRANSFER ------------------
 #[update]
 #[candid_method(update)]
-async fn reward_user(data_id: u64, recipient_address: String) -> Result<String, String> {
-    // 0) Check for submission and vote results.
+async fn reward_user(data_id: u64) -> Result<String, String> {
+    // 0) Submission 존재 여부 확인
     let submission = SUBMISSIONS.with(|subs| subs.borrow().get(&data_id))
         .ok_or_else(|| format!("Submission {} not found.", data_id))?
         .clone();
@@ -444,6 +461,7 @@ async fn reward_user(data_id: u64, recipient_address: String) -> Result<String, 
         return Err("Already rewarded.".to_string());
     }
 
+    // 1) 투표 집계
     let vote_list = VOTES.with(|vm| vm.borrow().get(&data_id).cloned().unwrap_or_default());
     let valid_votes = vote_list.iter().filter(|v| v.vote_value).count();
     let invalid_votes = vote_list.len() - valid_votes;
@@ -452,14 +470,19 @@ async fn reward_user(data_id: u64, recipient_address: String) -> Result<String, 
         return Err("Majority voted invalid, no reward.".to_string());
     }
 
-    // 1) Convert recipient_address (provided as a string) to a Principal.
+    // 2) User의 wallet address 가져오기
+    let user_id = submission.user.clone();
+    let recipient_address = USERS.with(|u| {
+        u.borrow().get(&user_id).and_then(|u| u.wallet_address.clone())
+    }).ok_or("User has no wallet address. Please connect your wallet first.")?;
+
+    // 3) wallet address (string) → Principal 변환
     let recipient_principal = Principal::from_text(&recipient_address)
         .map_err(|_| "Recipient address is not a valid principal".to_string())?;
 
-    // 2) Set the amount to send to 10,000 tokens (raw value as per your command).
+    // 4) 전송할 금액 설정 (예: 10,000 token)
     let amount_to_send = Nat::from(10_000u64);
 
-    // 3) Build the transfer arguments.
     let transfer_arg = TransferArg {
         to: Account {
             owner: recipient_principal,
@@ -472,11 +495,10 @@ async fn reward_user(data_id: u64, recipient_address: String) -> Result<String, 
         amount: amount_to_send,
     };
 
-    // 4) Use the correct ledger canister ID (ensure this is your actual ledger canister ID).
+    // 5) Ledger Canister ID (예시)
     let ledger_canister_id = Principal::from_text("br5f7-7uaaa-aaaaa-qaaca-cai")
         .map_err(|_| "Invalid ledger canister ID".to_string())?;
 
-    // 5) Call the ledger's "icrc1_transfer" method.
     let (transfer_result,): (TransferResult,) = call(
         ledger_canister_id,
         "icrc1_transfer",
@@ -485,10 +507,9 @@ async fn reward_user(data_id: u64, recipient_address: String) -> Result<String, 
     .await
     .map_err(|e| format!("Ledger call failed: {:?}", e))?;
 
-    // 6) Process the transfer result.
+    // 6) Transfer 결과 처리
     match transfer_result {
         TransferResult::Ok(block_idx) => {
-            // Mark the submission as rewarded.
             SUBMISSIONS.with(|subs| {
                 let mut subs = subs.borrow_mut();
                 if let Some(existing_sub) = subs.get(&data_id) {
@@ -497,7 +518,7 @@ async fn reward_user(data_id: u64, recipient_address: String) -> Result<String, 
                     subs.insert(data_id, sub);
                 }
             });
-            Ok(format!("Successfully rewarded recipient: {}, block index = {}", recipient_address, block_idx))
+            Ok(format!("Successfully rewarded user {} at block {}", user_id, block_idx))
         },
         TransferResult::Err(err) => {
             Err(format!("Transfer failed: {:?}", err))

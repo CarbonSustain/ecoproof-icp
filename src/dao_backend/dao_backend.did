@@ -3,7 +3,6 @@ type PostStatus = variant { OPEN; PENDING_PAYMENT; PAID };
 service : {
   submit_weather_data : (
     text,     // telegram_id
-    text,     // recipient_address
     float64,  // latitude
     float64,  // longitude
     text,     // city
@@ -18,7 +17,9 @@ service : {
     bool    // vote_value (true = valid, false = invalid)
   ) -> (text);  // confirmation string
 
-  reward_user : (nat64, text) -> (variant { Ok: text; Err: text });
+  reward_user : (
+    nat64  // data_id
+  ) -> (variant { Ok: text; Err: text });
 
   get_balance : (text) -> (nat64);
 
@@ -79,6 +80,7 @@ service : {
     language_code: opt text;
     is_bot: bool;
     profile_picture_url: opt text;
+    wallet_address: opt text; 
   });
 
   create_tg_user : (
@@ -87,7 +89,7 @@ service : {
     text,       // last_name
     text,       // username
     text,       // language_code
-    bool,        // is_bot
+    bool,       // is_bot
     text        // profile_picture_url
   ) -> (text);
 
@@ -101,6 +103,7 @@ service : {
       language_code: opt text;
       is_bot: bool;
       profile_picture_url: opt text;
+      wallet_address: opt text; 
     };
     Err: text;
   });
@@ -110,4 +113,9 @@ service : {
     upvotes: nat32;
     downvotes: nat32;
   });
+
+  update_wallet_address : (
+    text,  // user_id
+    text   // wallet_address
+  ) -> (text);
 };
