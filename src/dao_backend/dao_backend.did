@@ -1,4 +1,4 @@
-type PostStatus = variant { OPEN; PENDING_PAYMENT; PAID };
+type PostStatus = variant { OPEN; PENDING_PAYMENT; PAID; EXPIRED };
 
 service : {
   submit_weather_data : (
@@ -118,4 +118,21 @@ service : {
     text,  // user_id
     text   // wallet_address
   ) -> (text);
+
+  get_post_status : (
+    nat64  // data_id
+  ) -> (text);
+
+  finalize_post_status : (
+    nat64  // data_id
+  ) -> (text);
+
+    get_expiration_time : (
+    nat64  // data_id
+  ) -> (variant { Ok : nat64; Err : text });
+
+  get_all_expiration_times : () -> (vec record {
+    data_id : nat64;
+    expiration_timestamp : nat64;
+  });
 };

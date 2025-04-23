@@ -104,13 +104,21 @@ struct UserSubmission {
     data: WeatherData,
     rewarded: bool,
     status: PostStatus, 
+    expiration_timestamp: u64,
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct ExpirationInfo {
+    data_id: u64,
+    expiration_timestamp: u64,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq)]
 enum PostStatus {
     OPEN,
     PENDING_PAYMENT,
     PAID,
+    EXPIRED,
 }
 
 impl ic_stable_structures::Storable for UserSubmission {
@@ -222,7 +230,11 @@ fn pre_upgrade() {
         s.borrow().iter().map(|(k, v)| (k, v.clone())).collect()
     });
 
-    ic_cdk::storage::stable_save((submission_backup,))
+    let user_backup: Vec<(UserId, User)> = USERS.with(|u| {
+        u.borrow().iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+    });    
+
+    ic_cdk::storage::stable_save((submission_backup, user_backup))
         .expect("Failed to save state before upgrade");
 }
 
@@ -333,8 +345,12 @@ fn get_all_users() -> Vec<User> {
 
 #[update]
 fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
+    const SECOND: u64 = 1_000_000_000;
     let timestamp = time();
-    ic_cdk::println!("🚀 Received weather submission from {}", telegram_id);
+    let expiration_timestamp = timestamp + 604800 * SECOND;
+    ic_cdk::println!("Received weather submission from {}", telegram_id);
+    ic_cdk::println!("Submission time (timestamp): {}", timestamp);
+    ic_cdk::println!("Expiration time (timestamp): {}", expiration_timestamp);
     
     // let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
 
@@ -353,6 +369,7 @@ fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city:
         },
         rewarded: false,
         status: PostStatus::OPEN,
+        expiration_timestamp,
     };
 
     SUBMISSIONS.with(|s| {
@@ -442,6 +459,44 @@ fn get_balance(user_id: UserId) -> u64 {
     })
 }
 
+#[query]
+#[candid_method(query)]
+fn get_post_status(data_id: u64) -> String {
+    SUBMISSIONS.with(|subs| {
+        let subs = subs.borrow();
+        match subs.get(&data_id) {
+            Some(sub) => format!("Post status: {:?}", sub.status),
+            None => format!("Submission {} not found.", data_id),
+        }
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_expiration_time(data_id: u64) -> Result<u64, String> {
+    SUBMISSIONS.with(|subs| {
+        let subs = subs.borrow();
+        match subs.get(&data_id) {
+            Some(sub) => Ok(sub.expiration_timestamp),
+            None => Err(format!("Submission {} not found.", data_id)),
+        }
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_all_expiration_times() -> Vec<ExpirationInfo> {
+    SUBMISSIONS.with(|subs| {
+        subs.borrow()
+            .iter()
+            .map(|(id, sub)| ExpirationInfo {
+                data_id: id,
+                expiration_timestamp: sub.expiration_timestamp,
+            })
+            .collect()
+    })
+}
+
 #[derive(CandidType, Serialize, Deserialize)]
 enum RewardResponse {
     Ok(String),
@@ -452,7 +507,6 @@ enum RewardResponse {
 #[update]
 #[candid_method(update)]
 async fn reward_user(data_id: u64) -> Result<String, String> {
-    // 0) Submission 존재 여부 확인
     let submission = SUBMISSIONS.with(|subs| subs.borrow().get(&data_id))
         .ok_or_else(|| format!("Submission {} not found.", data_id))?
         .clone();
@@ -461,7 +515,6 @@ async fn reward_user(data_id: u64) -> Result<String, String> {
         return Err("Already rewarded.".to_string());
     }
 
-    // 1) 투표 집계
     let vote_list = VOTES.with(|vm| vm.borrow().get(&data_id).cloned().unwrap_or_default());
     let valid_votes = vote_list.iter().filter(|v| v.vote_value).count();
     let invalid_votes = vote_list.len() - valid_votes;
@@ -470,17 +523,14 @@ async fn reward_user(data_id: u64) -> Result<String, String> {
         return Err("Majority voted invalid, no reward.".to_string());
     }
 
-    // 2) User의 wallet address 가져오기
     let user_id = submission.user.clone();
     let recipient_address = USERS.with(|u| {
         u.borrow().get(&user_id).and_then(|u| u.wallet_address.clone())
     }).ok_or("User has no wallet address. Please connect your wallet first.")?;
 
-    // 3) wallet address (string) → Principal 변환
     let recipient_principal = Principal::from_text(&recipient_address)
         .map_err(|_| "Recipient address is not a valid principal".to_string())?;
 
-    // 4) 전송할 금액 설정 (예: 10,000 token)
     let amount_to_send = Nat::from(10_000u64);
 
     let transfer_arg = TransferArg {
@@ -495,7 +545,6 @@ async fn reward_user(data_id: u64) -> Result<String, String> {
         amount: amount_to_send,
     };
 
-    // 5) Ledger Canister ID (예시)
     let ledger_canister_id = Principal::from_text("br5f7-7uaaa-aaaaa-qaaca-cai")
         .map_err(|_| "Invalid ledger canister ID".to_string())?;
 
@@ -507,7 +556,6 @@ async fn reward_user(data_id: u64) -> Result<String, String> {
     .await
     .map_err(|e| format!("Ledger call failed: {:?}", e))?;
 
-    // 6) Transfer 결과 처리
     match transfer_result {
         TransferResult::Ok(block_idx) => {
             SUBMISSIONS.with(|subs| {
@@ -530,14 +578,38 @@ async fn reward_user(data_id: u64) -> Result<String, String> {
 #[candid_method(update)]
 fn vote_on_data(user_id: String, data_id: u64, vote_value: bool) -> String {
     ic_cdk::println!("DEBUG: vote_on_data called with user_id: {}, data_id: {}, vote_value: {}", user_id, data_id, vote_value);
-    let submission_exists = SUBMISSIONS.with(|submissions| {
-        let exists = submissions.borrow().get(&data_id).is_some();
-        ic_cdk::println!("DEBUG: Submission existence for {}: {}", data_id, exists);
-        exists
+
+    let mut submission_status = None;
+
+    let valid_submission = SUBMISSIONS.with(|subs| {
+        let mut subs = subs.borrow_mut();
+        if let Some(sub) = subs.get(&data_id) {
+            let now = time();
+            if now > sub.expiration_timestamp {
+                let mut updated = sub.clone();
+                updated.status = PostStatus::EXPIRED;
+                subs.insert(data_id, updated);
+                submission_status = Some(PostStatus::EXPIRED);
+                return false;
+            }
+
+            if sub.status != PostStatus::OPEN {
+                submission_status = Some(sub.status.clone());
+                return false;
+            }
+
+            true
+        } else {
+            false
+        }
     });
-    if !submission_exists {
-        ic_cdk::println!("DEBUG: Submission {} not found", data_id);
-        return "Weather data submission not found.".to_string();
+
+    if !valid_submission {
+        return match submission_status {
+            Some(PostStatus::EXPIRED) => "This post has expired. Voting is closed.".to_string(),
+            Some(_) => "Voting is not allowed on this submission.".to_string(),
+            None => "Submission not found.".to_string(),
+        };
     }
 
     let new_vote = Vote {
@@ -550,8 +622,8 @@ fn vote_on_data(user_id: String, data_id: u64, vote_value: bool) -> String {
 
     VOTES.with(|votes_map| {
         let mut votes_map = votes_map.borrow_mut();
-        
         let entry = votes_map.entry(data_id).or_insert(Vec::new());
+
         if entry.iter().any(|vote| vote.user == user_id) {
             ic_cdk::println!("DEBUG: User {} already voted on submission {}", user_id, data_id);
             return "User has already voted on this submission.".to_string();
@@ -559,7 +631,6 @@ fn vote_on_data(user_id: String, data_id: u64, vote_value: bool) -> String {
 
         entry.push(new_vote);
         ic_cdk::println!("DEBUG: Updated vote list for data_id {}: {:?}", data_id, entry);
-        
         format!("User {} successfully voted on data {}.", user_id, data_id)
     })
 }
@@ -580,6 +651,49 @@ fn get_vote_summary(data_id: u64) -> VoteSummary {
             downvotes,
         }
     })
+}
+
+#[update]
+#[candid_method(update)]
+fn finalize_post_status(data_id: u64) -> String {
+    use PostStatus::*;
+
+    let result = SUBMISSIONS.with(|subs| {
+        let mut subs = subs.borrow_mut();
+        match subs.get(&data_id) {
+            Some(sub) => {
+                let now = time();
+                if now < sub.expiration_timestamp {
+                    return Some(("Post is still open. Not finalized.".to_string(), sub.status.clone()));
+                }
+
+                if sub.status != OPEN {
+                    return Some((format!("Post already finalized with status {:?}", sub.status), sub.status.clone()));
+                }
+
+                let mut updated = sub.clone();
+                let votes = VOTES.with(|v| v.borrow().get(&data_id).cloned().unwrap_or_default());
+
+                let valid = votes.iter().filter(|v| v.vote_value).count();
+                let invalid = votes.len().saturating_sub(valid);
+
+                if valid > invalid {
+                    updated.status = PENDING_PAYMENT;
+                } else {
+                    updated.status = EXPIRED;
+                }
+
+                subs.insert(data_id, updated.clone());
+                Some((format!("Post finalized as {:?}", updated.status), updated.status))
+            },
+            None => None
+        }
+    });
+
+    match result {
+        Some((msg, _)) => msg,
+        None => format!("Submission {} not found.", data_id),
+    }
 }
 
 #[init]
