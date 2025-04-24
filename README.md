@@ -2,70 +2,42 @@
 
 - cargo clean
 - cargo update
-- dfx stop
-- dfx start --clean --background
-- dfx canister create https_outbound_canister
-- dfx canister create ecoproof-icp-backend
-- dfx canister create --all
-- dfx build
-- copy the code below and run in main directory:
-- dfx deploy icrc1_ledger_canister --argument '(
-  variant {
-    Init = record {
-      token_symbol = "CST";
-      token_name = "CarbonSustain Token";
-      minting_account = record {
-        owner = principal "zqysp-sinpb-fpwv7-tenyi-qfi3z-7jfuh-dlbnc-lwrbk-vckvr-mdwpv-zqe"
-      };
-      transfer_fee = 1000;
-      metadata = vec {};
-      feature_flags = opt record { icrc2 = true };
-      initial_balances = vec {
-        record {
-          record { owner = principal "zebce-iomlc-nkbqr-wgnia-dtbv2-2olwr-qbxfa-6intj-pcw72-it3xt-jae" };
-          100_000_000_000
-        }
-      };
-      archive_options = record {
-        num_blocks_to_archive = 1000;
-        trigger_threshold = 2000;
-        controller_id = principal "pdvbi-eykrt-uflfw-oi7h6-mixap-t3ac6-bntie-rskcw-wa2zg-fdhgf-5ae";
-        cycles_for_archive_creation = opt 10_000_000_000_000
-      }
-    }
-  }
-)'
-- cd src/icrc1_ledger_canister
-- Copy and paste code below to deploy icrc1_ledger_canister with Init argument:
-- dfx deploy icrc1_ledger_canister --argument '(
-  variant {
-    Init = record {
-      token_symbol = "CST";
-      token_name = "CarbonSustain Token";
-      minting_account = record {
-        owner = principal "zqysp-sinpb-fpwv7-tenyi-qfi3z-7jfuh-dlbnc-lwrbk-vckvr-mdwpv-zqe"
-      };
-      transfer_fee = 1000;
-      metadata = vec {};
-      feature_flags = opt record { icrc2 = true };
-      initial_balances = vec {
-        record {
-          record { owner = principal "zebce-iomlc-nkbqr-wgnia-dtbv2-2olwr-qbxfa-6intj-pcw72-it3xt-jae" };
-          100_000_000_000
-        }
-      };
-      archive_options = record {
-        num_blocks_to_archive = 1000;
-        trigger_threshold = 2000;
-        controller_id = principal "pdvbi-eykrt-uflfw-oi7h6-mixap-t3ac6-bntie-rskcw-wa2zg-fdhgf-5ae";
-        cycles_for_archive_creation = opt 10_000_000_000_000
-      }
-    }
-  }
-)'
-- cd ../..
-- dfx deploy
-- then:
+
+---
+1. **Run Full Deployment Script**
+
+   Instead of copying and pasting individual commands, simply run the deployment script:
+
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+    When you run the deployment script, it will:
+    - **Clean and update Rust dependencies**
+    - **Start a fresh local DFX replica**
+    - **Create and build all canisters**
+    - **Deploy the ICRC-1 Ledger canister with `Init` arguments**
+    - **Deploy all remaining canisters locally**
+---
+2. **Optional: If You Encounter Port Issues**
+
+   If you see an error like this when starting the local replica: Failed to bind socket to 127.0.0.1:4943
+
+    It usually means a previous replica is still running.  
+    You can reset and free the port by running:
+
+    ```bash
+    pkill -f dfx
+    dfx stop
+    ```
+    Then, restart the deployment script:
+
+   ```bash
+   ./deploy.sh
+   ```
+---
+
 - If you want to check how the backend function works, go to this link: http://127.0.0.1:4943/?canisterId=bw4dl-smaaa-aaaaa-qaacq-cai&id=bkyz2-fmaaa-aaaaa-qaaaq-cai
 - dfx canister call ecoproof-icp-backend fetch_https '( "https://api.exchange.coinbase.com/products/ICP-USD/ticker" )'
 
