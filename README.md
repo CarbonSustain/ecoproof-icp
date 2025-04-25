@@ -57,6 +57,7 @@
    ```
    You can open this URL in any browser to interact with the deployed canister.
 
+---
 - If you want to check how the backend function works, go to this link: http://127.0.0.1:4943/?canisterId=bw4dl-smaaa-aaaaa-qaacq-cai&id=bkyz2-fmaaa-aaaaa-qaaaq-cai
 - dfx canister call ecoproof-icp-backend fetch_https '( "https://api.exchange.coinbase.com/products/ICP-USD/ticker" )'
 
