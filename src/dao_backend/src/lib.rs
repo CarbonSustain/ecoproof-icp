@@ -14,88 +14,22 @@ use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use ic_cdk::call; 
 
+// -------- Type Definitions --------
+
 type UserId = String;
 type VoteId = u64;
 
+// -------- Structs --------
+
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 struct WeatherData {
-    latitude: f64,       
-    longitude: f64,      
-    city: String,        
-    temperature: f64,    
-    weather: String,   
-    timestamp: u64,     
+    latitude: f64,
+    longitude: f64,
+    city: String,
+    temperature: f64,
+    weather: String,
+    timestamp: u64,
     submission_photo_url: String,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-struct Vote {
-    user: UserId,
-    data_id: u64,
-    vote_value: bool,
-    submission_id: u64,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-struct VoteSummary {
-    data_id: u64,
-    upvotes: u32,
-    downvotes: u32,
-}
-
-// make another user structure
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
-struct User {
-    user_id: UserId,
-    balance: u64,
-    first_name: Option<String>,
-    last_name: Option<String>,
-    username: Option<String>,
-    language_code: Option<String>,
-    is_bot: bool,
-    profile_picture_url: Option<String>, 
-    wallet_address: Option<String>,
-}
-
-impl ic_stable_structures::Storable for User {
-    const BOUND: Bound = Bound::Unbounded;
-
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(serde_cbor::to_vec(self).unwrap())
-    }
-
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        serde_cbor::from_slice(&bytes).unwrap()
-    }
-}
-
-impl ic_stable_structures::Storable for Vote {
-    const BOUND: Bound = Bound::Unbounded;
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(serde_cbor::to_vec(self).unwrap())
-    }
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        serde_cbor::from_slice(&bytes).unwrap()
-    }
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
-struct VoteList(std::vec::Vec<Vote>);
-
-impl ic_stable_structures::Storable for VoteList {
-    const BOUND: Bound = Bound::Unbounded;
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(serde_cbor::to_vec(&self.0).unwrap())
-    }
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        match serde_cbor::from_slice::<Vec<Vote>>(&bytes) {
-            Ok(votes) => VoteList(votes), 
-            Err(e) => {
-                ic_cdk::println!("ERROR: Failed to deserialize VoteList: {:?}", e);
-                VoteList(vec![])
-            }
-        }
-    }
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
@@ -103,22 +37,8 @@ struct UserSubmission {
     user: UserId,
     data: WeatherData,
     rewarded: bool,
-    status: PostStatus, 
+    status: PostStatus,
     expiration_timestamp: u64,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
-struct ExpirationInfo {
-    data_id: u64,
-    expiration_timestamp: u64,
-}
-
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq)]
-enum PostStatus {
-    OPEN,
-    PENDING_PAYMENT,
-    PAID,
-    EXPIRED,
 }
 
 impl ic_stable_structures::Storable for UserSubmission {
@@ -142,6 +62,92 @@ impl ic_stable_structures::Storable for UserSubmission {
     }
 }
 
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct Vote {
+    user: UserId,
+    data_id: u64,
+    vote_value: bool,
+    submission_id: u64,
+}
+
+impl ic_stable_structures::Storable for Vote {
+    const BOUND: Bound = Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).unwrap()
+    }
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct VoteSummary {
+    data_id: u64,
+    upvotes: u32,
+    downvotes: u32,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
+struct User {
+    user_id: UserId,
+    balance: u64,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    username: Option<String>,
+    language_code: Option<String>,
+    is_bot: bool,
+    profile_picture_url: Option<String>,
+    wallet_address: Option<String>,
+}
+
+impl ic_stable_structures::Storable for User {
+    const BOUND: Bound = Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).unwrap()
+    }
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
+struct VoteList(std::vec::Vec<Vote>);
+
+impl ic_stable_structures::Storable for VoteList {
+    const BOUND: Bound = Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(&self.0).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        match serde_cbor::from_slice::<Vec<Vote>>(&bytes) {
+            Ok(votes) => VoteList(votes),
+            Err(e) => {
+                ic_cdk::println!("ERROR: Failed to deserialize VoteList: {:?}", e);
+                VoteList(vec![])
+            }
+        }
+    }
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct UserSubmissionSummary {
+    data_id: u64,
+    city: String,
+    status: PostStatus,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct ExpirationInfo {
+    data_id: u64,
+    expiration_timestamp: u64,
+}
+
 #[derive(CandidType, Serialize, Deserialize, Clone, Default)]
 struct TokenBalance {
     balance: u64,
@@ -159,6 +165,24 @@ impl ic_stable_structures::Storable for TokenBalance {
     }
 }
 
+// -------- Enums --------
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq)]
+enum PostStatus {
+    OPEN,
+    PENDING_PAYMENT,
+    PAID,
+    EXPIRED,
+}
+
+#[derive(CandidType, Serialize, Deserialize)]
+enum RewardResponse {
+    Ok(String),
+    Err(String),
+}
+
+// -------- Ledger Transfer Types --------
+
 #[derive(CandidType, Deserialize)]
 pub struct TransferArg {
     pub to: Account,
@@ -169,7 +193,8 @@ pub struct TransferArg {
     pub amount: Nat,
 }
 
-// ------------------ ICRC-1 LEDGER CALL DEFINITIONS ------------------
+// -------- Ledger Account / TransferResult / TransferError --------
+
 #[derive(CandidType, Deserialize)]
 pub struct Account {
     pub owner: Principal,
@@ -191,10 +216,9 @@ pub enum TransferError {
     CreatedInFuture { ledger_time: u64 },
     TooOld,
     InsufficientFunds { balance: Nat },
-    // etc.
 }
 
-
+// -------- Storage (StableBTreeMap + MemoryManager) --------
 thread_local! {
     static MEMORY_MANAGER: std::cell::RefCell<MemoryManager<DefaultMemoryImpl>> =
         std::cell::RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -224,6 +248,7 @@ thread_local! {
         std::cell::RefCell::new(HashMap::new());
 }
 
+// -------- Upgrade Hooks --------
 #[pre_upgrade]
 fn pre_upgrade() {
     let submission_backup: Vec<(u64, UserSubmission)> = SUBMISSIONS.with(|s| {
@@ -263,9 +288,7 @@ fn post_upgrade() {
     }
 }
 
-// TODO:
-// make create_tg_user function inside of icp/dao-backend
-// if user does not exitst, create; if user exists updates field (when they change their name or language_code)
+// -------- User functions --------
 #[update]
 #[candid_method(update)]
 fn create_tg_user(telegram_id: String, first_name: String, last_name: String, username: String, language_code: String, is_bot: bool, profile_picture_url: String) -> String {
@@ -343,6 +366,30 @@ fn get_all_users() -> Vec<User> {
     })
 }
 
+#[query]
+fn get_balance(user_id: UserId) -> u64 {
+    USERS.with(|users| {
+        let users = users.borrow();
+
+        if users.is_empty() {
+            ic_cdk::println!("ERROR: USERS map is empty, returning 0 for {}", user_id);
+            return 0;
+        }
+
+        match users.get(&user_id) {
+            Some(user) => {
+                ic_cdk::println!("🔍 DEBUG: Final balance check for user {}: {}", user_id, user.balance);
+                user.balance
+            }
+            None => {
+                ic_cdk::println!("⚠️ WARNING: No balance found for user {}, returning 0", user_id);
+                0
+            }
+        }
+    })
+}
+
+// -------- Submission functions --------
 #[update]
 fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
     const SECOND: u64 = 1_000_000_000;
@@ -352,8 +399,6 @@ fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city:
     ic_cdk::println!("Submission time (timestamp): {}", timestamp);
     ic_cdk::println!("Expiration time (timestamp): {}", expiration_timestamp);
     
-    // let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
-
     let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
 
     let new_data = UserSubmission {
@@ -437,28 +482,49 @@ fn get_user_posts(user_id: String) -> Vec<UserSubmission> {
 }
 
 #[query]
-fn get_balance(user_id: UserId) -> u64 {
-    USERS.with(|users| {
-        let users = users.borrow();
-
-        if users.is_empty() {
-            ic_cdk::println!("ERROR: USERS map is empty, returning 0 for {}", user_id);
-            return 0;
-        }
-
-        match users.get(&user_id) {
-            Some(user) => {
-                ic_cdk::println!("🔍 DEBUG: Final balance check for user {}: {}", user_id, user.balance);
-                user.balance
-            }
-            None => {
-                ic_cdk::println!("⚠️ WARNING: No balance found for user {}, returning 0", user_id);
-                0
-            }
-        }
+#[candid_method(query)]
+fn get_submissions_by_city(city: String) -> Vec<UserSubmission> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        submissions
+            .iter()
+            .filter(|(_, sub)| sub.data.city.to_lowercase() == city.to_lowercase())
+            .map(|(_, sub)| sub.clone())
+            .collect()
     })
 }
 
+#[query]
+#[candid_method(query)]
+fn get_rewarded_submissions(user_id: String) -> Vec<UserSubmission> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        submissions
+            .iter()
+            .filter(|(_, sub)| sub.user == user_id && sub.rewarded)
+            .map(|(_, sub)| sub.clone())
+            .collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_user_submission_summary(user_id: String) -> Vec<UserSubmissionSummary> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        submissions
+            .iter()
+            .filter(|(_, sub)| sub.user == user_id)
+            .map(|(id, sub)| UserSubmissionSummary {
+                data_id: id,
+                city: sub.data.city.clone(),
+                status: sub.status.clone(),
+            })
+            .collect()
+    })
+}
+
+// -------- Post status functions --------
 #[query]
 #[candid_method(query)]
 fn get_post_status(data_id: u64) -> String {
@@ -497,82 +563,50 @@ fn get_all_expiration_times() -> Vec<ExpirationInfo> {
     })
 }
 
-#[derive(CandidType, Serialize, Deserialize)]
-enum RewardResponse {
-    Ok(String),
-    Err(String),
-}
-
-// ------------------ NEW ASYNC reward_user with ICRC-1 TRANSFER ------------------
 #[update]
 #[candid_method(update)]
-async fn reward_user(data_id: u64) -> Result<String, String> {
-    let submission = SUBMISSIONS.with(|subs| subs.borrow().get(&data_id))
-        .ok_or_else(|| format!("Submission {} not found.", data_id))?
-        .clone();
+fn finalize_post_status(data_id: u64) -> String {
+    use PostStatus::*;
 
-    if submission.rewarded {
-        return Err("Already rewarded.".to_string());
-    }
-
-    let vote_list = VOTES.with(|vm| vm.borrow().get(&data_id).cloned().unwrap_or_default());
-    let valid_votes = vote_list.iter().filter(|v| v.vote_value).count();
-    let invalid_votes = vote_list.len() - valid_votes;
-
-    if valid_votes <= invalid_votes {
-        return Err("Majority voted invalid, no reward.".to_string());
-    }
-
-    let user_id = submission.user.clone();
-    let recipient_address = USERS.with(|u| {
-        u.borrow().get(&user_id).and_then(|u| u.wallet_address.clone())
-    }).ok_or("User has no wallet address. Please connect your wallet first.")?;
-
-    let recipient_principal = Principal::from_text(&recipient_address)
-        .map_err(|_| "Recipient address is not a valid principal".to_string())?;
-
-    let amount_to_send = Nat::from(10_000u64);
-
-    let transfer_arg = TransferArg {
-        to: Account {
-            owner: recipient_principal,
-            subaccount: None,
-        },
-        fee: None,
-        memo: None,
-        from_subaccount: None,
-        created_at_time: None,
-        amount: amount_to_send,
-    };
-
-    let ledger_canister_id = Principal::from_text("br5f7-7uaaa-aaaaa-qaaca-cai")
-        .map_err(|_| "Invalid ledger canister ID".to_string())?;
-
-    let (transfer_result,): (TransferResult,) = call(
-        ledger_canister_id,
-        "icrc1_transfer",
-        (transfer_arg,),
-    )
-    .await
-    .map_err(|e| format!("Ledger call failed: {:?}", e))?;
-
-    match transfer_result {
-        TransferResult::Ok(block_idx) => {
-            SUBMISSIONS.with(|subs| {
-                let mut subs = subs.borrow_mut();
-                if let Some(existing_sub) = subs.get(&data_id) {
-                    let mut sub = existing_sub.clone();
-                    sub.rewarded = true;
-                    subs.insert(data_id, sub);
+    let result = SUBMISSIONS.with(|subs| {
+        let mut subs = subs.borrow_mut();
+        match subs.get(&data_id) {
+            Some(sub) => {
+                let now = time();
+                if now < sub.expiration_timestamp {
+                    return Some(("Post is still open. Not finalized.".to_string(), sub.status.clone()));
                 }
-            });
-            Ok(format!("Successfully rewarded user {} at block {}", user_id, block_idx))
-        },
-        TransferResult::Err(err) => {
-            Err(format!("Transfer failed: {:?}", err))
+
+                if sub.status != OPEN {
+                    return Some((format!("Post already finalized with status {:?}", sub.status), sub.status.clone()));
+                }
+
+                let mut updated = sub.clone();
+                let votes = VOTES.with(|v| v.borrow().get(&data_id).cloned().unwrap_or_default());
+
+                let valid = votes.iter().filter(|v| v.vote_value).count();
+                let invalid = votes.len().saturating_sub(valid);
+
+                if valid > invalid {
+                    updated.status = PENDING_PAYMENT;
+                } else {
+                    updated.status = EXPIRED;
+                }
+
+                subs.insert(data_id, updated.clone());
+                Some((format!("Post finalized as {:?}", updated.status), updated.status))
+            },
+            None => None
         }
+    });
+
+    match result {
+        Some((msg, _)) => msg,
+        None => format!("Submission {} not found.", data_id),
     }
 }
+
+// -------- Vote functions --------
 
 #[update]
 #[candid_method(update)]
@@ -653,48 +687,218 @@ fn get_vote_summary(data_id: u64) -> VoteSummary {
     })
 }
 
+#[query]
+#[candid_method(query)]
+fn get_votes_by_user(user_id: String) -> Vec<Vote> {
+    VOTES.with(|votes_map| {
+        let votes_map = votes_map.borrow();
+        let mut user_votes = Vec::new();
+
+        for votes in votes_map.values() {
+            for vote in votes {
+                if vote.user == user_id {
+                    user_votes.push(vote.clone());
+                }
+            }
+        }
+
+        ic_cdk::println!(
+            "DEBUG: Found {} votes for user {}",
+            user_votes.len(),
+            user_id
+        );
+
+        user_votes
+    })
+}
+
 #[update]
 #[candid_method(update)]
-fn finalize_post_status(data_id: u64) -> String {
-    use PostStatus::*;
+fn update_vote(user_id: String, data_id: u64, new_vote_value: bool) -> String {
+    VOTES.with(|votes_map| {
+        let mut votes_map = votes_map.borrow_mut();
 
-    let result = SUBMISSIONS.with(|subs| {
-        let mut subs = subs.borrow_mut();
-        match subs.get(&data_id) {
-            Some(sub) => {
-                let now = time();
-                if now < sub.expiration_timestamp {
-                    return Some(("Post is still open. Not finalized.".to_string(), sub.status.clone()));
+        if let Some(votes) = votes_map.get_mut(&data_id) {
+            for vote in votes.iter_mut() {
+                if vote.user == user_id {
+                    vote.vote_value = new_vote_value;
+                    ic_cdk::println!(
+                        "DEBUG: Updated vote for user {} on data {} to {}",
+                        user_id, data_id, new_vote_value
+                    );
+                    return format!("Vote updated successfully for user {}", user_id);
                 }
-
-                if sub.status != OPEN {
-                    return Some((format!("Post already finalized with status {:?}", sub.status), sub.status.clone()));
-                }
-
-                let mut updated = sub.clone();
-                let votes = VOTES.with(|v| v.borrow().get(&data_id).cloned().unwrap_or_default());
-
-                let valid = votes.iter().filter(|v| v.vote_value).count();
-                let invalid = votes.len().saturating_sub(valid);
-
-                if valid > invalid {
-                    updated.status = PENDING_PAYMENT;
-                } else {
-                    updated.status = EXPIRED;
-                }
-
-                subs.insert(data_id, updated.clone());
-                Some((format!("Post finalized as {:?}", updated.status), updated.status))
-            },
-            None => None
+            }
+            ic_cdk::println!("DEBUG: User {} has not voted yet on data {}", user_id, data_id);
+            "Vote not found for user on this data.".to_string()
+        } else {
+            ic_cdk::println!("DEBUG: No votes found for data {}", data_id);
+            "No votes found for this submission.".to_string()
         }
-    });
+    })
+}
 
-    match result {
-        Some((msg, _)) => msg,
-        None => format!("Submission {} not found.", data_id),
+#[update]
+#[candid_method(update)]
+fn delete_vote(user_id: String, data_id: u64) -> String {
+    VOTES.with(|votes_map| {
+        let mut votes_map = votes_map.borrow_mut();
+
+        if let Some(votes) = votes_map.get_mut(&data_id) {
+            let original_len = votes.len();
+            votes.retain(|vote| vote.user != user_id);
+
+            if votes.len() < original_len {
+                ic_cdk::println!(
+                    "DEBUG: Deleted vote of user {} for data {}",
+                    user_id,
+                    data_id
+                );
+                "Vote deleted successfully.".to_string()
+            } else {
+                ic_cdk::println!(
+                    "DEBUG: Vote of user {} not found for data {}",
+                    user_id,
+                    data_id
+                );
+                "Vote not found for this user on this submission.".to_string()
+            }
+        } else {
+            ic_cdk::println!(
+                "DEBUG: No votes found for data {} when trying to delete vote of user {}",
+                data_id,
+                user_id
+            );
+            "No votes found for this submission.".to_string()
+        }
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_leaderboard_by_total_votes() -> Vec<VoteSummary> {
+    VOTES.with(|votes_map| {
+        let votes_map = votes_map.borrow();
+        
+        let mut summaries: Vec<VoteSummary> = votes_map.iter().map(|(data_id, votes)| {
+            let upvotes = votes.iter().filter(|v| v.vote_value).count() as u32;
+            let downvotes = votes.len() as u32 - upvotes;
+            VoteSummary {
+                data_id: *data_id,
+                upvotes,
+                downvotes,
+            }
+        }).collect();
+
+        summaries.sort_by(|a, b| {
+            let total_a = a.upvotes + a.downvotes;
+            let total_b = b.upvotes + b.downvotes;
+            total_b.cmp(&total_a)  
+                .then_with(|| a.data_id.cmp(&b.data_id)) 
+        });
+
+        summaries.into_iter().take(10).collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_leaderboard_by_upvotes() -> Vec<VoteSummary> {
+    VOTES.with(|votes_map| {
+        let votes_map = votes_map.borrow();
+        
+        let mut summaries: Vec<VoteSummary> = votes_map.iter().map(|(data_id, votes)| {
+            let upvotes = votes.iter().filter(|v| v.vote_value).count() as u32;
+            let downvotes = votes.len() as u32 - upvotes;
+            VoteSummary {
+                data_id: *data_id,
+                upvotes,
+                downvotes,
+            }
+        }).collect();
+
+        summaries.sort_by(|a, b| {
+            b.upvotes.cmp(&a.upvotes) 
+                .then_with(|| a.data_id.cmp(&b.data_id)) 
+        });
+
+        summaries.into_iter().take(10).collect()
+    })
+}
+
+// -------- Reward functions --------
+
+#[update]
+#[candid_method(update)]
+async fn reward_user(data_id: u64) -> Result<String, String> {
+    let submission = SUBMISSIONS.with(|subs| subs.borrow().get(&data_id))
+        .ok_or_else(|| format!("Submission {} not found.", data_id))?
+        .clone();
+
+    if submission.rewarded {
+        return Err("Already rewarded.".to_string());
+    }
+
+    let vote_list = VOTES.with(|vm| vm.borrow().get(&data_id).cloned().unwrap_or_default());
+    let valid_votes = vote_list.iter().filter(|v| v.vote_value).count();
+    let invalid_votes = vote_list.len() - valid_votes;
+
+    if valid_votes <= invalid_votes {
+        return Err("Majority voted invalid, no reward.".to_string());
+    }
+
+    let user_id = submission.user.clone();
+    let recipient_address = USERS.with(|u| {
+        u.borrow().get(&user_id).and_then(|u| u.wallet_address.clone())
+    }).ok_or("User has no wallet address. Please connect your wallet first.")?;
+
+    let recipient_principal = Principal::from_text(&recipient_address)
+        .map_err(|_| "Recipient address is not a valid principal".to_string())?;
+
+    let amount_to_send = Nat::from(10_000u64);
+
+    let transfer_arg = TransferArg {
+        to: Account {
+            owner: recipient_principal,
+            subaccount: None,
+        },
+        fee: None,
+        memo: None,
+        from_subaccount: None,
+        created_at_time: None,
+        amount: amount_to_send,
+    };
+
+    let ledger_canister_id = Principal::from_text("br5f7-7uaaa-aaaaa-qaaca-cai")
+        .map_err(|_| "Invalid ledger canister ID".to_string())?;
+
+    let (transfer_result,): (TransferResult,) = call(
+        ledger_canister_id,
+        "icrc1_transfer",
+        (transfer_arg,),
+    )
+    .await
+    .map_err(|e| format!("Ledger call failed: {:?}", e))?;
+
+    match transfer_result {
+        TransferResult::Ok(block_idx) => {
+            SUBMISSIONS.with(|subs| {
+                let mut subs = subs.borrow_mut();
+                if let Some(existing_sub) = subs.get(&data_id) {
+                    let mut sub = existing_sub.clone();
+                    sub.rewarded = true;
+                    subs.insert(data_id, sub);
+                }
+            });
+            Ok(format!("Successfully rewarded user {} at block {}", user_id, block_idx))
+        },
+        TransferResult::Err(err) => {
+            Err(format!("Transfer failed: {:?}", err))
+        }
     }
 }
+
+// -------- Canister init --------
 
 #[init]
 fn init() {

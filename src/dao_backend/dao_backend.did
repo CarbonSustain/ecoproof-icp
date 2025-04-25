@@ -1,5 +1,40 @@
 type PostStatus = variant { OPEN; PENDING_PAYMENT; PAID; EXPIRED };
 
+type Vote = record {
+  user: text;
+  data_id: nat64;
+  vote_value: bool;
+  submission_id: nat64;
+};
+
+type UserSubmission = record {
+  user: text;
+  data: record {
+    latitude: float64;
+    longitude: float64;
+    city: text;
+    temperature: float64;
+    weather: text;
+    timestamp: nat64;
+    submission_photo_url: text;
+  };
+  rewarded: bool;
+  status: PostStatus;
+  expiration_timestamp: nat64;
+};
+
+type UserSubmissionSummary = record {
+  data_id: nat64;
+  city: text;
+  status: PostStatus;
+};
+
+type VoteSummary = record {
+  data_id: nat64;
+  upvotes: nat32;
+  downvotes: nat32;
+};
+
 service : {
   submit_weather_data : (
     text,     // telegram_id
@@ -135,4 +170,12 @@ service : {
     data_id : nat64;
     expiration_timestamp : nat64;
   });
+  get_votes_by_user : (text) -> (vec Vote) query;
+  update_vote : (text, nat64, bool) -> (text);
+  delete_vote : (text, nat64) -> (text);
+  get_submissions_by_city : (text) -> (vec UserSubmission) query;
+  get_rewarded_submissions : (text) -> (vec UserSubmission) query;
+  get_user_submission_summary : (text) -> (vec UserSubmissionSummary) query;
+  get_leaderboard_by_total_votes : () -> (vec VoteSummary) query;
+  get_leaderboard_by_upvotes : () -> (vec VoteSummary) query;
 };
