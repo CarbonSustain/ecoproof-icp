@@ -37,6 +37,25 @@
    ./deploy.sh
    ```
 ---
+3. **Run Playground Deployment Script**
+   Instead of copying and pasting individual commands, simply run the deployment script:
+
+   ```bash
+   chmod +x deploy_playground.sh
+   ./deploy_playground.sh
+   ```
+    When you run the deployment script, it will:
+    - **Build the dao_backend canister locally**
+    - **Deploy the dao_backend to the Playground**
+    - **Provide an external Playground URL you can access publicly**
+
+   After successful deployment, you will see an output like:
+   ```bash
+   Playground URL:
+   https://<canister_id>.icp0.io
+   Deployment completed to playground.
+   ```
+   You can open this URL in any browser to interact with the deployed canister.
 
 - If you want to check how the backend function works, go to this link: http://127.0.0.1:4943/?canisterId=bw4dl-smaaa-aaaaa-qaacq-cai&id=bkyz2-fmaaa-aaaaa-qaaaq-cai
 - dfx canister call ecoproof-icp-backend fetch_https '( "https://api.exchange.coinbase.com/products/ICP-USD/ticker" )'
