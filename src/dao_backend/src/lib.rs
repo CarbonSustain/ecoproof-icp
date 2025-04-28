@@ -218,6 +218,14 @@ pub enum TransferError {
     InsufficientFunds { balance: Nat },
 }
 
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct SubmissionLocationInfo {
+    data_id: u64,
+    latitude: f64,
+    longitude: f64,
+    status: PostStatus,
+}
+
 // -------- Storage (StableBTreeMap + MemoryManager) --------
 thread_local! {
     static MEMORY_MANAGER: std::cell::RefCell<MemoryManager<DefaultMemoryImpl>> =
@@ -503,6 +511,24 @@ fn get_rewarded_submissions(user_id: String) -> Vec<UserSubmission> {
             .iter()
             .filter(|(_, sub)| sub.user == user_id && sub.rewarded)
             .map(|(_, sub)| sub.clone())
+            .collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_user_submission_locations(user_id: String) -> Vec<SubmissionLocationInfo> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        submissions
+            .iter()
+            .filter(|(_, sub)| sub.user == user_id)
+            .map(|(id, sub)| SubmissionLocationInfo {
+                data_id: id,
+                latitude: sub.data.latitude,
+                longitude: sub.data.longitude,
+                status: sub.status.clone(),
+            })
             .collect()
     })
 }
