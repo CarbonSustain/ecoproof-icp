@@ -20,7 +20,31 @@
     - **Deploy the ICRC-1 Ledger canister with `Init` arguments**
     - **Deploy all remaining canisters locally**
 ---
-2. **Optional: If You Encounter Port Issues**
+2. **test_insert.sh - Demo Data Insertion Script**
+
+    This script generates sample data for local or Playground testing of the dao_backend canister. Simply run:
+
+   ```bash
+   chmod +x test_insert.sh
+   ./test_insert.sh
+   ```
+
+    When you run the deployment script, it will:
+    - **Creates 10 Test Users**
+      - Each user has a unique Telegram ID, name, and profile picture URL.
+    - **Submits 20 Weather Reports**
+      - Weather data is submitted by users across 7 different cities, covering a variety of weather conditions.
+    - **Votes on First 10 Submissions**
+
+    ### Data Summary
+
+   | Category        | Count |
+   |----------------|-------|
+   | Users Created   | 10    |
+   | Weather Posts   | 20    |
+   | Votes Cast      | 100   |
+---
+3. **Optional: If You Encounter Port Issues**
 
    If you see an error like this when starting the local replica: Failed to bind socket to 127.0.0.1:4943
 
@@ -37,7 +61,7 @@
    ./deploy.sh
    ```
 ---
-3. **Run Playground Deployment Script**
+4. **Run Playground Deployment Script**
    Instead of copying and pasting individual commands, simply run the deployment script:
 
    ```bash
