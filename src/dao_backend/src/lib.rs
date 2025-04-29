@@ -34,6 +34,7 @@ struct WeatherData {
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 struct UserSubmission {
+    data_id: u64, 
     user: UserId,
     data: WeatherData,
     rewarded: bool,
@@ -278,7 +279,8 @@ fn post_upgrade() {
     {
         SUBMISSIONS.with(|s| {
             let mut s = s.borrow_mut();
-            for (k, v) in submission_backup {
+            for (k, mut v) in submission_backup {
+                v.data_id = k;
                 s.insert(k, v);
             }
         });
@@ -410,6 +412,7 @@ fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city:
     let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
 
     let new_data = UserSubmission {
+        data_id,
         user: telegram_id.clone(),
         data: WeatherData {
             latitude,
@@ -473,10 +476,15 @@ fn get_submission(data_id: u64) -> Result<UserSubmission, String> {
 fn get_user_posts(user_id: String) -> Vec<UserSubmission> {
     SUBMISSIONS.with(|submissions| {
         let submissions = submissions.borrow();
+
         let user_posts: Vec<UserSubmission> = submissions
             .iter()
             .filter(|(_, sub)| sub.user == user_id)
-            .map(|(_, sub)| sub.clone())
+            .map(|(id, sub)| {
+                let mut sub_with_id = sub.clone();
+                sub_with_id.data_id = id;
+                sub_with_id
+            })
             .collect();
 
         ic_cdk::println!(

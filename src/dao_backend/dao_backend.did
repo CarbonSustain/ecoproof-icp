@@ -8,6 +8,7 @@ type Vote = record {
 };
 
 type UserSubmission = record {
+  data_id: nat64;
   user: text;
   data: record {
     latitude: float64;
@@ -60,6 +61,7 @@ service : {
 
   get_submission : (nat64) -> (variant { 
     Ok: record { 
+      data_id: nat64;
       user: text; 
       data: record { 
         latitude: float64; 
@@ -77,6 +79,7 @@ service : {
   });
 
   get_all_submissions : () -> (vec record { 
+    data_id: nat64;
     user: text; 
     data: record { 
       latitude: float64; 
@@ -92,6 +95,7 @@ service : {
   });
 
   get_user_posts: (text) -> (vec record {
+    data_id: nat64;
     user: text;
     data: record {
       latitude: float64;
