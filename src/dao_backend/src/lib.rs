@@ -404,7 +404,7 @@ fn get_balance(user_id: UserId) -> u64 {
 fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
     const SECOND: u64 = 1_000_000_000;
     let timestamp = time();
-    let expiration_timestamp = timestamp + 604800 * SECOND;
+    let expiration_timestamp = timestamp + 300 * SECOND;
     ic_cdk::println!("Received weather submission from {}", telegram_id);
     ic_cdk::println!("Submission time (timestamp): {}", timestamp);
     ic_cdk::println!("Expiration time (timestamp): {}", expiration_timestamp);
