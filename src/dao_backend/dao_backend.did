@@ -36,6 +36,16 @@ type VoteSummary = record {
   downvotes: nat32;
 };
 
+type Challenge = record {
+  id          : nat64;
+  title       : text;
+  latitude    : float64;
+  longitude   : float64;
+  radius_m    : float64;
+  expiration  : nat64;     
+  picture_url : text;
+};
+
 service : {
   submit_weather_data : (
     text,     // telegram_id
@@ -183,4 +193,30 @@ service : {
   get_leaderboard_by_total_votes : () -> (vec VoteSummary) query;
   get_leaderboard_by_upvotes : () -> (vec VoteSummary) query;
   get_user_submission_locations: (text) -> (vec record { status: variant { OPEN; PAID; PENDING_PAYMENT; EXPIRED }; latitude: float64; data_id: nat64; longitude: float64 }) query;
+
+  create_challenge : (
+    text,      // title
+    float64,   // latitude
+    float64,   // longitude
+    float64,   // radius_m
+    nat64,     // expiration (ns since epoch)
+    text       // picture_url
+  ) -> (nat64);
+  get_active_challenges : (float64, float64) -> (vec Challenge) query;
+  submit_weather_data_with_challenge : (
+    text,      // telegram_id
+    float64,   // latitude
+    float64,   // longitude
+    text,      // city
+    float64,   // temperature
+    text,      // weather
+    text,      // submission_photo_url
+    nat64      // challenge_id
+  ) -> (variant { Ok : nat64; Err : text });
+
+  get_challenge : (nat64) -> (variant { Ok : Challenge; Err : text }) query;
+  get_user_submissions_by_challenge : (text, nat64) -> (vec UserSubmission) query;
+  get_challenges_expiring_soon : (nat64) -> (vec Challenge) query;
+  get_challenges_by_radius : (float64, float64, float64) -> (vec Challenge) query;
+  get_submissions_by_challenge : (nat64) -> (vec UserSubmission) query;
 };

@@ -6,18 +6,20 @@ use candid::candid_method;
 use ic_stable_structures::{
     StableBTreeMap,
     DefaultMemoryImpl,
-    storable::Bound,
+    storable::{Storable, Bound},
     memory_manager::{MemoryManager, MemoryId, VirtualMemory},
 };
 use std::borrow::Cow;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use ic_cdk::call; 
+use std::cell::RefCell;  
 
 // -------- Type Definitions --------
 
 type UserId = String;
 type VoteId = u64;
+const MAX_CHALLENGE_BYTES: u32 = 512;
 
 // -------- Structs --------
 
@@ -60,6 +62,32 @@ impl ic_stable_structures::Storable for UserSubmission {
                 ic_cdk::trap("Deserialization of UserSubmission failed, returning default UserSubmission.");
             }
         }
+    }
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct Challenge {
+    id: u64,
+    title: String,
+    latitude: f64,
+    longitude: f64,
+    radius_m: f64,
+    expiration: u64,
+    picture_url: String,
+}
+
+impl Storable for Challenge {
+    const BOUND: Bound = Bound::Bounded {
+        max_size: MAX_CHALLENGE_BYTES,
+        is_fixed_size: false,
+    };
+    
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(serde_cbor::to_vec(self).expect("Challenge serialization failed"))
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        serde_cbor::from_slice(&bytes).expect("Challenge deserialization failed")
     }
 }
 
@@ -244,7 +272,7 @@ thread_local! {
             StableBTreeMap::init(memory) 
         });
 
-        static USERS: std::cell::RefCell<StableBTreeMap<UserId, User, VirtualMemory<DefaultMemoryImpl>>> =
+    static USERS: std::cell::RefCell<StableBTreeMap<UserId, User, VirtualMemory<DefaultMemoryImpl>>> =
         std::cell::RefCell::new({
             let memory = MEMORY_MANAGER.with(|m| {
                 let memory_id = MemoryId::new(1);
@@ -255,6 +283,14 @@ thread_local! {
 
     static VOTES: std::cell::RefCell<HashMap<u64, Vec<Vote>>> =
         std::cell::RefCell::new(HashMap::new());
+
+    static CHALLENGES: RefCell<StableBTreeMap<u64, Challenge, VirtualMemory<DefaultMemoryImpl>>> = 
+        RefCell::new({
+            let memory = MEMORY_MANAGER.with(|m| {
+                m.borrow().get(MemoryId::new(2))
+            });
+            StableBTreeMap::init(memory)
+        });
 }
 
 // -------- Upgrade Hooks --------
@@ -857,6 +893,221 @@ fn get_leaderboard_by_upvotes() -> Vec<VoteSummary> {
         });
 
         summaries.into_iter().take(10).collect()
+    })
+}
+
+// -------- Challenge functions --------
+#[update]
+#[candid_method(update)]
+fn create_challenge(title: String, latitude: f64, longitude: f64, radius_m: f64, expiration: u64, picture_url: String) -> u64 {
+    let id = CHALLENGES.with(|c| c.borrow().len() as u64 + 1);
+    let challenge = Challenge { id, title, latitude, longitude, radius_m, expiration, picture_url };
+
+    CHALLENGES.with(|c| {
+        c.borrow_mut().insert(id, challenge);
+    });
+
+    id
+}
+
+#[query]
+#[candid_method(query)]
+fn get_active_challenges(lat: f64, lon: f64) -> Vec<Challenge> {
+    let now = time();
+    CHALLENGES.with(|c| {
+        c.borrow()
+            .iter()
+            .filter(|(_, ch)| {
+                ch.expiration > now && is_within_geofence(lat, lon, ch.latitude, ch.longitude, ch.radius_m)
+            })
+            .map(|(_, ch)| ch.clone())
+            .collect()
+    })
+}
+
+fn is_submission_within_challenge(challenge_id: u64, lat: f64, lon: f64) -> Result<(), String> {
+    CHALLENGES.with(|c| {
+        match c.borrow().get(&challenge_id) {
+            Some(ch) => {
+                if ch.expiration < time() {
+                    return Err("Challenge expired".to_string());
+                }
+                if !is_within_geofence(lat, lon, ch.latitude, ch.longitude, ch.radius_m) {
+                    return Err("Location outside challenge geofence".to_string());
+                }
+                Ok(())
+            }
+            None => Err("Challenge not found".to_string()),
+        }
+    })
+}
+
+fn is_within_geofence(
+    lat1: f64,
+    lon1: f64,
+    lat2: f64,
+    lon2: f64,
+    radius_m: f64,
+) -> bool {
+    let distance = haversine_distance(lat1, lon1, lat2, lon2);
+    distance <= radius_m
+}
+
+fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let r = 6371e3_f64; // meters
+    let phi1 = lat1.to_radians();
+    let phi2 = lat2.to_radians();
+    let delta_phi = (lat2 - lat1).to_radians();
+    let delta_lambda = (lon2 - lon1).to_radians();
+
+    let a = (delta_phi / 2.0).sin().powi(2)
+        + phi1.cos() * phi2.cos() * (delta_lambda / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+
+    r * c
+}
+
+#[update]
+#[candid_method(update)]
+fn submit_weather_data_with_challenge(
+    telegram_id: String,
+    latitude: f64,
+    longitude: f64,
+    city: String,
+    temperature: f64,
+    weather: String,
+    submission_photo_url: String,
+    challenge_id: u64,
+) -> Result<u64, String> {
+    const SECOND: u64 = 1_000_000_000;
+    let timestamp = time();
+    let expiration_timestamp = timestamp + 300 * SECOND;
+
+    is_submission_within_challenge(challenge_id, latitude, longitude)?;
+
+    let data_id = SUBMISSIONS.with(|s| s.borrow().len() as u64 + 1);
+
+    let new_data = UserSubmission {
+        data_id,
+        user: telegram_id.clone(),
+        data: WeatherData {
+            latitude,
+            longitude,
+            city,
+            temperature,
+            weather,
+            timestamp,
+            submission_photo_url,
+        },
+        rewarded: false,
+        status: PostStatus::OPEN,
+        expiration_timestamp,
+    };
+
+    SUBMISSIONS.with(|s| {
+        s.borrow_mut().insert(data_id, new_data.clone());
+    });
+
+    Ok(data_id)
+}
+
+#[query]
+#[candid_method(query)]
+fn get_challenge(challenge_id: u64) -> Result<Challenge, String> {
+    CHALLENGES.with(|c| {
+        c.borrow().get(&challenge_id)
+        .map(|ch| ch.clone()) 
+        .ok_or("Challenge not found.".to_string())
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_all_challenges() -> Vec<Challenge> {
+    CHALLENGES.with(|c| {
+        c.borrow().iter().map(|(_, ch)| ch.clone()).collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_user_submissions_by_challenge(user_id: String, challenge_id: u64) -> Vec<UserSubmission> {
+    SUBMISSIONS.with(|subs| {
+        subs.borrow().iter()
+            .filter(|(_, sub)| sub.user == user_id 
+                && is_submission_in_challenge(sub, challenge_id))
+            .map(|(_, sub)| sub.clone())
+            .collect()
+    })
+}
+
+fn is_submission_in_challenge(sub: &UserSubmission, challenge_id: u64) -> bool {
+    CHALLENGES.with(|c| {
+        c.borrow().get(&challenge_id).map_or(false, |ch| {
+            is_within_geofence(
+                sub.data.latitude,
+                sub.data.longitude,
+                ch.latitude,
+                ch.longitude,
+                ch.radius_m,
+            )
+        })
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_challenges_expiring_soon(cutoff_seconds: u64) -> Vec<Challenge> {
+    let now = time();
+    CHALLENGES.with(|c| {
+        c.borrow().iter()
+            .filter(|(_, ch)| {
+                let remaining = ch.expiration.saturating_sub(now);
+                remaining <= cutoff_seconds * 1_000_000_000
+            })
+            .map(|(_, ch)| ch.clone())
+            .collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_challenges_by_radius(lat: f64, lon: f64, radius_m: f64) -> Vec<Challenge> {
+    let now = time();
+    CHALLENGES.with(|c| {
+        c.borrow().iter()
+            .filter(|(_, ch)| {
+                ch.expiration > now &&
+                haversine_distance(lat, lon, ch.latitude, ch.longitude) <= radius_m
+            })
+            .map(|(_, ch)| ch.clone())
+            .collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_submissions_by_challenge(challenge_id: u64) -> Vec<UserSubmission> {
+    CHALLENGES.with(|c| {
+        let challenge = match c.borrow().get(&challenge_id) {
+            Some(ch) => ch.clone(),
+            None => return vec![],
+        };
+
+        SUBMISSIONS.with(|subs| {
+            subs.borrow().iter()
+                .filter(|(_, sub)| {
+                    is_within_geofence(
+                        sub.data.latitude,
+                        sub.data.longitude,
+                        challenge.latitude,
+                        challenge.longitude,
+                        challenge.radius_m,
+                    )
+                })
+                .map(|(_, sub)| sub.clone())
+                .collect()
+        })
     })
 }
 
