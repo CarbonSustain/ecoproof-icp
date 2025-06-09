@@ -18,7 +18,6 @@ use std::cell::RefCell;
 // -------- Type Definitions --------
 
 type UserId = String;
-type VoteId = u64;
 const MAX_CHALLENGE_BYTES: u32 = 512;
 
 // -------- Structs --------
@@ -118,6 +117,19 @@ struct VoteSummary {
     downvotes: u32,
 }
 
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum Role {
+    USER,
+    ADMIN,
+    MODERATOR,
+}
+
+impl Default for Role {
+    fn default() -> Self {
+        Role::USER
+    }
+}
+
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
 struct User {
     user_id: UserId,
@@ -129,6 +141,7 @@ struct User {
     is_bot: bool,
     profile_picture_url: Option<String>,
     wallet_address: Option<String>,
+    role: Role,
 }
 
 impl ic_stable_structures::Storable for User {
@@ -143,7 +156,7 @@ impl ic_stable_structures::Storable for User {
     }
 }
 
-#[derive(CandidType, Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 struct VoteList(std::vec::Vec<Vote>);
 
 impl ic_stable_structures::Storable for VoteList {
@@ -199,7 +212,7 @@ impl ic_stable_structures::Storable for TokenBalance {
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq)]
 enum PostStatus {
     OPEN,
-    PENDING_PAYMENT,
+    PendingPayment,
     PAID,
     EXPIRED,
 }
@@ -365,6 +378,7 @@ fn create_tg_user(telegram_id: String, first_name: String, last_name: String, us
                     is_bot,
                     profile_picture_url: Some(profile_picture_url),
                     wallet_address: None,
+                    role: Role::USER,
                 };
                 users.insert(user_id.clone(), new_user);
                 ic_cdk::println!("Created new user: {}", user_id);
@@ -658,7 +672,7 @@ fn finalize_post_status(data_id: u64) -> String {
                 let invalid = votes.len().saturating_sub(valid);
 
                 if valid > invalid {
-                    updated.status = PENDING_PAYMENT;
+                    updated.status = PendingPayment;
                 } else {
                     updated.status = EXPIRED;
                 }
@@ -899,14 +913,23 @@ fn get_leaderboard_by_upvotes() -> Vec<VoteSummary> {
 // -------- Challenge functions --------
 #[update]
 #[candid_method(update)]
-fn create_challenge(title: String, latitude: f64, longitude: f64, radius_m: f64, expiration: u64, picture_url: String) -> u64 {
+fn create_challenge(title: String, latitude: f64, longitude: f64, radius_m: f64, expiration_duration: u64, picture_url: String) -> u64 {
+    let now = time();
+    let expiration = now + expiration_duration;
     let id = CHALLENGES.with(|c| c.borrow().len() as u64 + 1);
-    let challenge = Challenge { id, title, latitude, longitude, radius_m, expiration, picture_url };
-
+    let challenge = Challenge {
+        id,
+        title,
+        latitude,
+        longitude,
+        radius_m,
+        expiration,
+        picture_url,
+    };
     CHALLENGES.with(|c| {
-        c.borrow_mut().insert(id, challenge);
+        c.borrow_mut().insert(id, challenge.clone());
     });
-
+    ic_cdk::println!("Created challenge: {} (id: {})", challenge.title, challenge.id);
     id
 }
 
@@ -915,13 +938,18 @@ fn create_challenge(title: String, latitude: f64, longitude: f64, radius_m: f64,
 fn get_active_challenges(lat: f64, lon: f64) -> Vec<Challenge> {
     let now = time();
     CHALLENGES.with(|c| {
-        c.borrow()
+        ic_cdk::println!("Starting get_active_challenges for location: ({}, {})", lat, lon);
+        let challenges: Vec<Challenge> = c.borrow()
             .iter()
             .filter(|(_, ch)| {
+                ic_cdk::println!("Checking challenge: lat={}, lon={}, radius={}, expiration={}", 
+                    ch.latitude, ch.longitude, ch.radius_m, ch.expiration);
                 ch.expiration > now && is_within_geofence(lat, lon, ch.latitude, ch.longitude, ch.radius_m)
             })
             .map(|(_, ch)| ch.clone())
-            .collect()
+            .collect();
+        ic_cdk::println!("Found {} active challenges", challenges.len());
+        challenges
     })
 }
 
@@ -950,6 +978,7 @@ fn is_within_geofence(
     radius_m: f64,
 ) -> bool {
     let distance = haversine_distance(lat1, lon1, lat2, lon2);
+    ic_cdk::println!("distance: {}, radius: {}", distance, radius_m);
     distance <= radius_m
 }
 
@@ -1188,4 +1217,66 @@ async fn reward_user(data_id: u64) -> Result<String, String> {
 #[init]
 fn init() {
     ic_cdk::println!("Canister initialized with StableBTreeMap storage.");
+}
+
+// Role management functions
+// fn is_admin(user_id: &UserId) -> bool {
+//     USERS.with(|users| {
+//         users.borrow()
+//             .get(user_id)
+//             .map(|user| user.role == Role::ADMIN)
+//             .unwrap_or(false)
+//     })
+// }
+
+// fn is_moderator(user_id: &UserId) -> bool {
+//     USERS.with(|users| {
+//         users.borrow()
+//             .get(user_id)
+//             .map(|user| user.role == Role::MODERATOR || user.role == Role::ADMIN)
+//             .unwrap_or(false)
+//     })
+// }
+
+#[update]
+#[candid_method(update)]
+async fn update_user_role(
+    caller: Principal,
+    target_user_id: String,
+    new_role: Role,
+) -> Result<(), String> {
+    let caller_id = caller.to_string();
+    
+    // Check if caller is admin and get target user in a single scope
+    let target_user = USERS.with(|users| {
+        let users = users.borrow();
+        let caller_user = users.get(&caller_id).ok_or("Caller not found")?;
+        let target_user = users.get(&target_user_id).ok_or("Target user not found")?;
+        
+        if caller_user.role != Role::ADMIN {
+            return Err("Only admins can update roles".to_string());
+        }
+        
+        Ok(target_user.clone())
+    })?;
+    
+    // Update the user in storage
+    USERS.with(|users| {
+        let mut users = users.borrow_mut();
+        let mut updated_user = target_user;
+        updated_user.role = new_role;
+        users.insert(target_user_id, updated_user);
+    });
+
+    Ok(())
+}
+
+#[query]
+fn get_user_role(user_id: String) -> Result<Role, String> {
+    USERS.with(|users| {
+        users.borrow()
+            .get(&user_id)
+            .map(|user| user.role.clone())
+            .ok_or_else(|| "User not found".to_string())
+    })
 }

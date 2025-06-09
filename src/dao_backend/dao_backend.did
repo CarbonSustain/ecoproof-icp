@@ -46,6 +46,12 @@ type Challenge = record {
   picture_url : text;
 };
 
+type Role = variant {
+    User;
+    Admin;
+    Moderator;
+};
+
 service : {
   submit_weather_data : (
     text,     // telegram_id
@@ -219,4 +225,7 @@ service : {
   get_challenges_expiring_soon : (nat64) -> (vec Challenge) query;
   get_challenges_by_radius : (float64, float64, float64) -> (vec Challenge) query;
   get_submissions_by_challenge : (nat64) -> (vec UserSubmission) query;
+
+  update_user_role: (text, text, Role) -> (variant { Ok: text; Err: text });
+  get_user_role: (text) -> (variant { Ok: Role; Err: text });
 };
