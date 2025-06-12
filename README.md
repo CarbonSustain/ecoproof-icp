@@ -3,6 +3,8 @@
 - cargo clean
 - cargo update
 
+- pkill -f dfx && dfx stop
+
 ---
 1. **Run Full Deployment Script**
 
@@ -12,6 +14,12 @@
    chmod +x deploy.sh
    ./deploy.sh
    ```
+  # ONE COMMAND
+  # cargo clean && cargo update && pkill -f dfx && dfx stop && ./deploy.sh
+
+  # if edited Candid UI
+  # dfx generate && dfx deploy
+  #
 
     When you run the deployment script, it will:
     - **Clean and update Rust dependencies**

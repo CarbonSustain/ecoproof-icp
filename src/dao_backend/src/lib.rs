@@ -212,7 +212,7 @@ impl ic_stable_structures::Storable for TokenBalance {
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq)]
 enum PostStatus {
     OPEN,
-    PendingPayment,
+    PENDING,
     PAID,
     EXPIRED,
 }
@@ -672,7 +672,7 @@ fn finalize_post_status(data_id: u64) -> String {
                 let invalid = votes.len().saturating_sub(valid);
 
                 if valid > invalid {
-                    updated.status = PendingPayment;
+                    updated.status = PENDING;
                 } else {
                     updated.status = EXPIRED;
                 }
@@ -1278,5 +1278,32 @@ fn get_user_role(user_id: String) -> Result<Role, String> {
             .get(&user_id)
             .map(|user| user.role.clone())
             .ok_or_else(|| "User not found".to_string())
+    })
+}
+
+#[update]
+#[candid_method(update)]
+fn mark_submission_rewarded(data_id: u64) -> Result<String, String> {
+    // First check if the submission exists
+    let submission = SUBMISSIONS.with(|subs| {
+        subs.borrow().get(&data_id).clone()
+    }).ok_or_else(|| format!("Submission {} not found", data_id))?;
+
+    // Check if already rewarded
+    if submission.rewarded {
+        return Err("Submission already rewarded".to_string());
+    }
+
+    // Update the submission status
+    SUBMISSIONS.with(|subs| {
+        let mut subs = subs.borrow_mut();
+        if let Some(mut sub) = subs.get(&data_id) {
+            sub.rewarded = true;
+            sub.status = PostStatus::PAID;
+            subs.insert(data_id, sub.clone());
+            Ok(format!("Successfully marked submission {} as rewarded", data_id))
+        } else {
+            Err(format!("Failed to update submission {}", data_id))
+        }
     })
 }

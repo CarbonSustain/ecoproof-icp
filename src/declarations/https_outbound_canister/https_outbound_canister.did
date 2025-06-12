@@ -1,0 +1,4 @@
+service : {
+  // Query method that fetches data via an outbound HTTPS call.
+  fetch_data: () -> (text) query;
+}

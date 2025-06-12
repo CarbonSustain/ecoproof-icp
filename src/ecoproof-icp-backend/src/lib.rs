@@ -12,6 +12,8 @@ use candid::CandidType;
 use ic_cdk::api::management_canister::http_request::HttpHeader;
 use urlencoding::encode;
 use base64;
+use base64::engine::general_purpose;
+use base64::Engine;
 
 /// Initialization function that sets a timer to call the API every 30 seconds.
 const TARGET_LAT: f64 = 39.7791;
@@ -53,7 +55,7 @@ fn init() {
     set_timer_interval(Duration::from_secs(300), || {
         // Spawn an asynchronous task for the HTTP request.
         ic_cdk::spawn(async {
-            let url = format!(
+            let _url = format!(
                 "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid={}&units=metric",
                 TARGET_LAT, TARGET_LON, WEATHER_KEY //later Pass the API Key at Deployment
             );
@@ -199,7 +201,7 @@ async fn save_meteomatics_data(lat: f64, lon: f64) -> Result<String, String> {
     // Encode authentication credentials
     let auth_header = format!(
         "Basic {}",
-        base64::encode(format!("{}:{}", USERNAME, PASSWORD))
+        general_purpose::STANDARD.encode(format!("{}:{}", USERNAME, PASSWORD))
     );
 
     // Prepare HTTP request
