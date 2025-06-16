@@ -119,14 +119,14 @@ struct VoteSummary {
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum Role {
-    USER,
-    ADMIN,
-    MODERATOR,
+    User,
+    Admin,
+    Moderator,
 }
 
 impl Default for Role {
     fn default() -> Self {
-        Role::USER
+        Role::User
     }
 }
 
@@ -355,35 +355,33 @@ fn create_tg_user(telegram_id: String, first_name: String, last_name: String, us
         let mut users = users_map.borrow_mut();
         let user_id = telegram_id.clone();
 
-        match users.get(&user_id) {
-            Some(mut user) => {
-                ic_cdk::println!("👤 Existing user found: {}. Updating info.", user_id);
-                user.first_name = Some(first_name);
-                user.last_name = Some(last_name);
-                user.username = Some(username);
-                user.language_code = Some(language_code);
-                user.is_bot = is_bot;
-                user.profile_picture_url = Some(profile_picture_url);
-                users.insert(user_id.clone(), user);
-                format!("Updated user: {}", user_id)
-            }
-            None => {
-                let new_user = User {
-                    user_id: user_id.clone(),
-                    balance: 0,
-                    first_name: Some(first_name),
-                    last_name: Some(last_name),
-                    username: Some(username),
-                    language_code: Some(language_code),
-                    is_bot,
-                    profile_picture_url: Some(profile_picture_url),
-                    wallet_address: None,
-                    role: Role::USER,
-                };
-                users.insert(user_id.clone(), new_user);
-                ic_cdk::println!("Created new user: {}", user_id);
-                format!("Created new user: {}", user_id)
-            }
+        if let Some(user) = users.get(&user_id) {
+            let mut updated_user = user;
+            ic_cdk::println!("👤 Existing user found: {}. Updating info.", user_id);
+            updated_user.first_name = Some(first_name);
+            updated_user.last_name = Some(last_name);
+            updated_user.username = Some(username);
+            updated_user.language_code = Some(language_code);
+            updated_user.is_bot = is_bot;
+            updated_user.profile_picture_url = Some(profile_picture_url);
+            users.insert(user_id.clone(), updated_user);
+            format!("Updated user: {}", user_id)
+        } else {
+            let new_user = User {
+                user_id: user_id.clone(),
+                balance: 0,
+                first_name: Some(first_name),
+                last_name: Some(last_name),
+                username: Some(username),
+                language_code: Some(language_code),
+                is_bot,
+                profile_picture_url: Some(profile_picture_url),
+                wallet_address: None,
+                role: Role::User,
+            };
+            users.insert(user_id.clone(), new_user);
+            ic_cdk::println!("Created new user: {}", user_id);
+            format!("Created new user: {}", user_id)
         }
     })
 }
@@ -1241,19 +1239,20 @@ fn init() {
 #[update]
 #[candid_method(update)]
 async fn update_user_role(
-    caller: Principal,
+    caller_id: String,
     target_user_id: String,
     new_role: Role,
-) -> Result<(), String> {
-    let caller_id = caller.to_string();
-    
+) -> Result<String, String> {
     // Check if caller is admin and get target user in a single scope
     let target_user = USERS.with(|users| {
         let users = users.borrow();
         let caller_user = users.get(&caller_id).ok_or("Caller not found")?;
         let target_user = users.get(&target_user_id).ok_or("Target user not found")?;
         
-        if caller_user.role != Role::ADMIN {
+        // Allow creating the first admin
+        let is_first_admin = !users.iter().any(|(_, u)| u.role == Role::Admin);
+        
+        if !is_first_admin && caller_user.role != Role::Admin {
             return Err("Only admins can update roles".to_string());
         }
         
@@ -1268,7 +1267,7 @@ async fn update_user_role(
         users.insert(target_user_id, updated_user);
     });
 
-    Ok(())
+    Ok("Role updated successfully".to_string())
 }
 
 #[query]
