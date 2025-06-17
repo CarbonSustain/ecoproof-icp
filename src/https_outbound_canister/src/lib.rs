@@ -90,13 +90,38 @@ pub struct WeatherData {
     pub sunset: u64,
 }
 
+#[derive(CandidType, Serialize, Deserialize)]
+pub struct InitArgs {
+    pub openweather_api_key: String,
+}
+
 #[init]
-fn init() {
+fn init(args: Option<InitArgs>) {
     ic_cdk::println!("HTTPS Outbound Canister initialized");
-    // Initialize with the API key - this would be set during deployment
+    
+    // Initialize with the API key from deployment arguments
+    if let Some(init_args) = args {
+        API_KEY.with(|key| {
+            *key.borrow_mut() = Some(init_args.openweather_api_key);
+        });
+        ic_cdk::println!("API key configured from initialization arguments");
+    } else {
+        ic_cdk::println!("Warning: No API key provided during initialization");
+    }
+}
+
+// Function to set or update the API key (admin only in production)
+#[update]
+fn set_api_key(api_key: String) -> Result<String, String> {
+    if api_key.is_empty() {
+        return Err("API key cannot be empty".to_string());
+    }
+    
     API_KEY.with(|key| {
-        *key.borrow_mut() = Some("56c02b4b1b79079a258808f6a8535068".to_string());
+        *key.borrow_mut() = Some(api_key);
     });
+    
+    Ok("API key updated successfully".to_string())
 }
 
 fn get_stored_api_key() -> Result<String, String> {

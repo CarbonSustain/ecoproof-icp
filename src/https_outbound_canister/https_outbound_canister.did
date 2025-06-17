@@ -1,3 +1,7 @@
+type InitArgs = record {
+  openweather_api_key: text;
+};
+
 type WeatherData = record {
   city: text;
   country: text;
@@ -17,16 +21,18 @@ type WeatherData = record {
   weather_description: text;
   timestamp: nat64;
   sunrise: nat64;
-  
   sunset: nat64;
 };
 
-service : {
+service : (opt InitArgs) -> {
   // Fetch weather data by latitude and longitude coordinates
   fetch_weather_data: (float64, float64) -> (variant { Ok: WeatherData; Err: text });
 
   // Fetch weather data by city name
   fetch_weather_by_city: (text) -> (variant { Ok: WeatherData; Err: text });
+
+  // Set or update the API key (for admin use)
+  set_api_key: (text) -> (variant { Ok: text; Err: text });
 
   // Get information about the API capabilities
   get_api_info: () -> (text) query;

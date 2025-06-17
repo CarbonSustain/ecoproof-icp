@@ -1,5 +1,21 @@
 #!/bin/bash
 
+# Load environment variables from .env file
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+    echo "🔑 Loaded environment variables from .env file"
+else
+    echo "❌ .env file not found! Please create one with WEATHER_API_KEY=your_api_key"
+    exit 1
+fi
+
+# Check if WEATHER_API_KEY is set
+if [ -z "$WEATHER_API_KEY" ]; then
+    echo "❌ WEATHER_API_KEY not found in .env file!"
+    echo "Please add: WEATHER_API_KEY=your_openweather_api_key_here"
+    exit 1
+fi
+
 echo "🔁 1. Stop any running replica and start a clean local replica..."
 dfx stop
 dfx start --clean --background
@@ -12,7 +28,10 @@ dfx canister create --all
 echo "🔧 3. Build all canisters..."
 dfx build
 
-echo "💰 4. Deploy ICRC-1 Ledger canister locally with Init arguments..."
+echo "🌤️ 4. Deploy HTTPS Outbound Canister with API key..."
+dfx deploy https_outbound_canister --argument "(opt record { openweather_api_key = \"$WEATHER_API_KEY\" })"
+
+echo "💰 5. Deploy ICRC-1 Ledger canister locally with Init arguments..."
 dfx deploy icrc1_ledger_canister --argument '(
   variant { Init = record {
     token_symbol = "CST";
@@ -35,7 +54,7 @@ dfx deploy icrc1_ledger_canister --argument '(
   }}
 )'
 
-echo "📂 5. Re-deploying ICRC-1 Ledger from within its directory (if needed)..."
+echo "📂 6. Re-deploying ICRC-1 Ledger from within its directory (if needed)..."
 cd src/icrc1_ledger_canister
 dfx deploy icrc1_ledger_canister --argument '(
   variant { Init = record {
@@ -60,7 +79,9 @@ dfx deploy icrc1_ledger_canister --argument '(
 )'
 cd ../..
 
-echo "🚀 6. Deploy all other canisters locally..."
-dfx deploy
+echo "🚀 7. Deploy remaining canisters locally..."
+dfx deploy dao_backend
+dfx deploy ecoproof-icp-backend
 
 echo "✅ All canisters deployed locally. Done!"
+echo "🌤️ HTTPS Outbound Canister deployed with API key from .env file"
