@@ -1,4 +1,47 @@
+type WeatherData = record {
+  city: text;
+  country: text;
+  latitude: float64;
+  longitude: float64;
+  temperature: float64;
+  feels_like: float64;
+  temp_min: float64;
+  temp_max: float64;
+  humidity: float64;
+  pressure: float64;
+  wind_speed: float64;
+  wind_direction: float64;
+  visibility: nat32;
+  cloudiness: nat32;
+  weather_condition: text;
+  weather_description: text;
+  timestamp: nat64;
+  sunrise: nat64;
+  
+  sunset: nat64;
+};
+
 service : {
-  // Query method that fetches data via an outbound HTTPS call.
-  fetch_data: () -> (text) query;
+  // Fetch weather data by latitude and longitude coordinates
+  fetch_weather_data: (float64, float64) -> (variant { Ok: WeatherData; Err: text });
+
+  // Fetch weather data by city name
+  fetch_weather_by_city: (text) -> (variant { Ok: WeatherData; Err: text });
+
+  // Get information about the API capabilities
+  get_api_info: () -> (text) query;
+
+  // Transform function for HTTP outcalls (required by IC)
+  transform: (record {
+    response: record {
+      status: nat;
+      body: blob;
+      headers: vec record { text; text };
+    };
+    context: blob;
+  }) -> (record {
+    status: nat;
+    body: blob;
+    headers: vec record { text; text };
+  }) query;
 }

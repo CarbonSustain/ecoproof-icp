@@ -136,6 +136,7 @@ service : {
     is_bot: bool;
     profile_picture_url: opt text;
     wallet_address: opt text; 
+    role: Role;
   });
 
   create_tg_user : (
@@ -159,6 +160,7 @@ service : {
       is_bot: bool;
       profile_picture_url: opt text;
       wallet_address: opt text; 
+      role: Role;
     };
     Err: text;
   });

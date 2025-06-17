@@ -21,7 +21,7 @@
       "package": "https_outbound_canister",
       "type": "rust",
       "http_outcalls": {
-        "allow": ["https://example.com"]
+        "allow": ["https://api.openweathermap.org"]
       }
     },
     "icrc1_ledger_canister": {

@@ -613,6 +613,7 @@ dependencies = [
  "ic-stable-structures 0.6.9",
  "serde",
  "serde_cbor",
+ "serde_json",
 ]
 
 [[package]]

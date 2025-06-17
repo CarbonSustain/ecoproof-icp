@@ -14,6 +14,11 @@ export const idlFactory = ({ IDL }) => {
     'EXPIRED' : IDL.Null,
     'PENDING' : IDL.Null,
   });
+  const Role = IDL.Variant({
+    'User' : IDL.Null,
+    'Admin' : IDL.Null,
+    'Moderator' : IDL.Null,
+  });
   const VoteSummary = IDL.Record({
     'upvotes' : IDL.Nat32,
     'data_id' : IDL.Nat64,
@@ -34,11 +39,6 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Text,
     'expiration_timestamp' : IDL.Nat64,
     'rewarded' : IDL.Bool,
-  });
-  const Role = IDL.Variant({
-    'User' : IDL.Null,
-    'Admin' : IDL.Null,
-    'Moderator' : IDL.Null,
   });
   const UserSubmissionSummary = IDL.Record({
     'status' : PostStatus,
@@ -112,6 +112,7 @@ export const idlFactory = ({ IDL }) => {
               'username' : IDL.Opt(IDL.Text),
               'balance' : IDL.Nat64,
               'language_code' : IDL.Opt(IDL.Text),
+              'role' : Role,
               'wallet_address' : IDL.Opt(IDL.Text),
               'profile_picture_url' : IDL.Opt(IDL.Text),
               'user_id' : IDL.Text,
@@ -202,6 +203,7 @@ export const idlFactory = ({ IDL }) => {
               'username' : IDL.Opt(IDL.Text),
               'balance' : IDL.Nat64,
               'language_code' : IDL.Opt(IDL.Text),
+              'role' : Role,
               'wallet_address' : IDL.Opt(IDL.Text),
               'profile_picture_url' : IDL.Opt(IDL.Text),
               'user_id' : IDL.Text,
