@@ -202,6 +202,9 @@ service : {
   get_leaderboard_by_upvotes : () -> (vec VoteSummary) query;
   get_user_submission_locations: (text) -> (vec record { status: variant { OPEN; PAID; PENDING; EXPIRED }; latitude: float64; data_id: nat64; longitude: float64 }) query;
 
+  get_submission_map_by_city : () -> (vec record { text; nat64 }) query;
+  get_paid_submission_map_by_city : () -> (vec record { text; nat64 }) query;
+
   create_challenge : (
     text,      // title
     float64,   // latitude

@@ -606,6 +606,47 @@ fn get_user_submission_summary(user_id: String) -> Vec<UserSubmissionSummary> {
     })
 }
 
+#[query]
+#[candid_method(query)]
+fn get_submission_map_by_city() -> Vec<(String, u64)> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        let mut city_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        
+        for (_, submission) in submissions.iter() {
+            let city = submission.data.city.clone();
+            *city_counts.entry(city).or_insert(0) += 1;
+        }
+        
+        ic_cdk::println!("DEBUG: City submission counts: {:?}", city_counts);
+        
+        // Convert HashMap to Vec of tuples for Candid compatibility
+        city_counts.into_iter().collect()
+    })
+}
+
+#[query]
+#[candid_method(query)]
+fn get_paid_submission_map_by_city() -> Vec<(String, u64)> {
+    SUBMISSIONS.with(|submissions| {
+        let submissions = submissions.borrow();
+        let mut city_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        
+        for (_, submission) in submissions.iter() {
+            // Only count submissions that have been rewarded/paid
+            if submission.rewarded || submission.status == PostStatus::PAID {
+                let city = submission.data.city.clone();
+                *city_counts.entry(city).or_insert(0) += 1;
+            }
+        }
+        
+        ic_cdk::println!("DEBUG: Paid city submission counts: {:?}", city_counts);
+        
+        // Convert HashMap to Vec of tuples for Candid compatibility
+        city_counts.into_iter().collect()
+    })
+}
+
 // -------- Post status functions --------
 #[query]
 #[candid_method(query)]

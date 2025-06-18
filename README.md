@@ -5,6 +5,8 @@
 
 - pkill -f dfx && dfx stop
 
+- add WEATHER_API_KEY="<APIKEY>" in .env at **LINE 1 of FILE**
+
 ---
 1. **Run Full Deployment Script**
 
