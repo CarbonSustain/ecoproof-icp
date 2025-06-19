@@ -185,6 +185,25 @@ struct UserSubmissionSummary {
 }
 
 #[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
+struct SubmissionInfo {
+    data_id: u64,
+    user_id: UserId,
+    username: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    profile_picture_url: Option<String>,
+    latitude: f64,
+    longitude: f64,
+    city: String,
+    temperature: f64,
+    weather: String,
+    timestamp: u64,
+    submission_photo_url: String,
+    rewarded: bool,
+    status: PostStatus,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Clone, Debug)]
 struct ExpirationInfo {
     data_id: u64,
     expiration_timestamp: u64,
@@ -452,7 +471,7 @@ fn get_balance(user_id: UserId) -> u64 {
 fn submit_weather_data(telegram_id: String, latitude: f64, longitude: f64, city: String, temperature: f64, weather: String, submission_photo_url: String) -> u64 {
     const SECOND: u64 = 1_000_000_000;
     let timestamp = time();
-    let expiration_timestamp = timestamp + 300 * SECOND;
+    let expiration_timestamp = timestamp + 900 * SECOND;
     ic_cdk::println!("Received weather submission from {}", telegram_id);
     ic_cdk::println!("Submission time (timestamp): {}", timestamp);
     ic_cdk::println!("Expiration time (timestamp): {}", expiration_timestamp);
@@ -608,43 +627,68 @@ fn get_user_submission_summary(user_id: String) -> Vec<UserSubmissionSummary> {
 
 #[query]
 #[candid_method(query)]
-fn get_submission_map_by_city() -> Vec<(String, u64)> {
-    SUBMISSIONS.with(|submissions| {
-        let submissions = submissions.borrow();
-        let mut city_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
-        
-        for (_, submission) in submissions.iter() {
-            let city = submission.data.city.clone();
-            *city_counts.entry(city).or_insert(0) += 1;
-        }
-        
-        ic_cdk::println!("DEBUG: City submission counts: {:?}", city_counts);
-        
-        // Convert HashMap to Vec of tuples for Candid compatibility
-        city_counts.into_iter().collect()
-    })
+fn get_submission_map_by_city() -> Vec<(String, Vec<SubmissionInfo>)> {
+    let submissions: Vec<_> = SUBMISSIONS.with(|s| s.borrow().iter().map(|(_, v)| v.clone()).collect());
+    let users: HashMap<_,_> = USERS.with(|u| u.borrow().iter().map(|(k, v)| (k.clone(), v.clone())).collect());
+    let mut city_map: HashMap<String, Vec<SubmissionInfo>> = HashMap::new();
+
+    for submission in submissions {
+        let user_info = users.get(&submission.user);
+        let submission_info = SubmissionInfo {
+            data_id: submission.data_id,
+            user_id: submission.user.clone(),
+            username: user_info.and_then(|u| u.username.clone()),
+            first_name: user_info.and_then(|u| u.first_name.clone()),
+            last_name: user_info.and_then(|u| u.last_name.clone()),
+            profile_picture_url: user_info.and_then(|u| u.profile_picture_url.clone()),
+            latitude: submission.data.latitude,
+            longitude: submission.data.longitude,
+            city: submission.data.city.clone(),
+            temperature: submission.data.temperature,
+            weather: submission.data.weather.clone(),
+            timestamp: submission.data.timestamp,
+            submission_photo_url: submission.data.submission_photo_url.clone(),
+            rewarded: submission.rewarded,
+            status: submission.status.clone(),
+        };
+        city_map.entry(submission.data.city.clone()).or_default().push(submission_info);
+    }
+
+    city_map.into_iter().collect()
 }
 
 #[query]
 #[candid_method(query)]
-fn get_paid_submission_map_by_city() -> Vec<(String, u64)> {
-    SUBMISSIONS.with(|submissions| {
-        let submissions = submissions.borrow();
-        let mut city_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
-        
-        for (_, submission) in submissions.iter() {
-            // Only count submissions that have been rewarded/paid
-            if submission.rewarded || submission.status == PostStatus::PAID {
-                let city = submission.data.city.clone();
-                *city_counts.entry(city).or_insert(0) += 1;
-            }
+fn get_paid_submission_map_by_city() -> Vec<(String, Vec<SubmissionInfo>)> {
+    let submissions: Vec<_> = SUBMISSIONS.with(|s| s.borrow().iter().map(|(_, v)| v.clone()).collect());
+    let users: HashMap<_,_> = USERS.with(|u| u.borrow().iter().map(|(k, v)| (k.clone(), v.clone())).collect());
+    let mut city_map: HashMap<String, Vec<SubmissionInfo>> = HashMap::new();
+
+    for submission in submissions {
+        if submission.rewarded || submission.status == PostStatus::PAID {
+            let user_info = users.get(&submission.user);
+            let submission_info = SubmissionInfo {
+                data_id: submission.data_id,
+                user_id: submission.user.clone(),
+                username: user_info.and_then(|u| u.username.clone()),
+                first_name: user_info.and_then(|u| u.first_name.clone()),
+                last_name: user_info.and_then(|u| u.last_name.clone()),
+                profile_picture_url: user_info.and_then(|u| u.profile_picture_url.clone()),
+                latitude: submission.data.latitude,
+                longitude: submission.data.longitude,
+                city: submission.data.city.clone(),
+                temperature: submission.data.temperature,
+                weather: submission.data.weather.clone(),
+                timestamp: submission.data.timestamp,
+                submission_photo_url: submission.data.submission_photo_url.clone(),
+                rewarded: submission.rewarded,
+                status: submission.status.clone(),
+            };
+            city_map.entry(submission.data.city.clone()).or_default().push(submission_info);
         }
-        
-        ic_cdk::println!("DEBUG: Paid city submission counts: {:?}", city_counts);
-        
-        // Convert HashMap to Vec of tuples for Candid compatibility
-        city_counts.into_iter().collect()
-    })
+    }
+
+    city_map.into_iter().collect()
 }
 
 // -------- Post status functions --------
@@ -736,37 +780,10 @@ fn finalize_post_status(data_id: u64) -> String {
 fn vote_on_data(user_id: String, data_id: u64, vote_value: bool) -> String {
     ic_cdk::println!("DEBUG: vote_on_data called with user_id: {}, data_id: {}, vote_value: {}", user_id, data_id, vote_value);
 
-    let mut submission_status = None;
+    let submission_exists = SUBMISSIONS.with(|subs| subs.borrow().contains_key(&data_id));
 
-    let valid_submission = SUBMISSIONS.with(|subs| {
-        let mut subs = subs.borrow_mut();
-        if let Some(sub) = subs.get(&data_id) {
-            let now = time();
-            if now > sub.expiration_timestamp {
-                let mut updated = sub.clone();
-                updated.status = PostStatus::EXPIRED;
-                subs.insert(data_id, updated);
-                submission_status = Some(PostStatus::EXPIRED);
-                return false;
-            }
-
-            if sub.status != PostStatus::OPEN {
-                submission_status = Some(sub.status.clone());
-                return false;
-            }
-
-            true
-        } else {
-            false
-        }
-    });
-
-    if !valid_submission {
-        return match submission_status {
-            Some(PostStatus::EXPIRED) => "This post has expired. Voting is closed.".to_string(),
-            Some(_) => "Voting is not allowed on this submission.".to_string(),
-            None => "Submission not found.".to_string(),
-        };
+    if !submission_exists {
+        return "Submission not found.".to_string();
     }
 
     let new_vote = Vote {
