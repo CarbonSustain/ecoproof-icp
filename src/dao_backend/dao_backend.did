@@ -249,7 +249,11 @@ service : {
   get_challenges_by_radius : (float64, float64, float64) -> (vec Challenge) query;
   get_submissions_by_challenge : (nat64) -> (vec UserSubmission) query;
 
-  update_user_role: (text, text, Role) -> (variant { Ok: text; Err: text });
+  update_user_role: (
+    text,  // caller_id
+    text,  // target_user_id
+    Role  // new_role
+  ) -> (variant { Ok: text; Err: text });
   get_user_role: (text) -> (variant { Ok: Role; Err: text });
   mark_submission_rewarded : (nat64) -> (variant { Ok : text; Err : text });
 };
