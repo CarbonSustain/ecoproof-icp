@@ -18,6 +18,7 @@
    ```
   # ONE COMMAND
   # cargo clean && cargo update && pkill -f dfx && dfx stop && ./deploy.sh
+  # ngrok http 4943
 
   # if edited Candid UI
   # dfx generate && dfx deploy

@@ -36,6 +36,24 @@ type VoteSummary = record {
   downvotes: nat32;
 };
 
+type SubmissionInfo = record {
+  data_id: nat64;
+  user_id: text;
+  username: opt text;
+  first_name: opt text;
+  last_name: opt text;
+  profile_picture_url: opt text;
+  latitude: float64;
+  longitude: float64;
+  city: text;
+  temperature: float64;
+  weather: text;
+  timestamp: nat64;
+  submission_photo_url: text;
+  rewarded: bool;
+  status: PostStatus;
+};
+
 type Challenge = record {
   id          : nat64;
   title       : text;
@@ -202,6 +220,9 @@ service : {
   get_leaderboard_by_upvotes : () -> (vec VoteSummary) query;
   get_user_submission_locations: (text) -> (vec record { status: variant { OPEN; PAID; PENDING; EXPIRED }; latitude: float64; data_id: nat64; longitude: float64 }) query;
 
+  get_submission_map_by_city : () -> (vec record { text; vec SubmissionInfo }) query;
+  get_paid_submission_map_by_city : () -> (vec record { text; vec SubmissionInfo }) query;
+
   create_challenge : (
     text,      // title
     float64,   // latitude
@@ -228,7 +249,11 @@ service : {
   get_challenges_by_radius : (float64, float64, float64) -> (vec Challenge) query;
   get_submissions_by_challenge : (nat64) -> (vec UserSubmission) query;
 
-  update_user_role: (text, text, Role) -> (variant { Ok: text; Err: text });
+  update_user_role: (
+    text,  // caller_id
+    text,  // target_user_id
+    Role  // new_role
+  ) -> (variant { Ok: text; Err: text });
   get_user_role: (text) -> (variant { Ok: Role; Err: text });
   mark_submission_rewarded : (nat64) -> (variant { Ok : text; Err : text });
 };

@@ -18,6 +18,23 @@ export type PostStatus = { 'OPEN' : null } |
 export type Role = { 'User' : null } |
   { 'Admin' : null } |
   { 'Moderator' : null };
+export interface SubmissionInfo {
+  'status' : PostStatus,
+  'latitude' : number,
+  'data_id' : bigint,
+  'submission_photo_url' : string,
+  'username' : [] | [string],
+  'temperature' : number,
+  'city' : string,
+  'profile_picture_url' : [] | [string],
+  'user_id' : string,
+  'longitude' : number,
+  'rewarded' : boolean,
+  'timestamp' : bigint,
+  'first_name' : [] | [string],
+  'last_name' : [] | [string],
+  'weather' : string,
+}
 export interface UserSubmission {
   'status' : PostStatus,
   'data_id' : bigint,
@@ -121,6 +138,10 @@ export interface _SERVICE {
   >,
   'get_leaderboard_by_total_votes' : ActorMethod<[], Array<VoteSummary>>,
   'get_leaderboard_by_upvotes' : ActorMethod<[], Array<VoteSummary>>,
+  'get_paid_submission_map_by_city' : ActorMethod<
+    [],
+    Array<[string, Array<SubmissionInfo>]>
+  >,
   'get_post_status' : ActorMethod<[bigint], string>,
   'get_rewarded_submissions' : ActorMethod<[string], Array<UserSubmission>>,
   'get_submission' : ActorMethod<
@@ -143,6 +164,10 @@ export interface _SERVICE {
         }
       } |
       { 'Err' : string }
+  >,
+  'get_submission_map_by_city' : ActorMethod<
+    [],
+    Array<[string, Array<SubmissionInfo>]>
   >,
   'get_submissions_by_challenge' : ActorMethod<[bigint], Array<UserSubmission>>,
   'get_submissions_by_city' : ActorMethod<[string], Array<UserSubmission>>,

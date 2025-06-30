@@ -24,6 +24,23 @@ export const idlFactory = ({ IDL }) => {
     'data_id' : IDL.Nat64,
     'downvotes' : IDL.Nat32,
   });
+  const SubmissionInfo = IDL.Record({
+    'status' : PostStatus,
+    'latitude' : IDL.Float64,
+    'data_id' : IDL.Nat64,
+    'submission_photo_url' : IDL.Text,
+    'username' : IDL.Opt(IDL.Text),
+    'temperature' : IDL.Float64,
+    'city' : IDL.Text,
+    'profile_picture_url' : IDL.Opt(IDL.Text),
+    'user_id' : IDL.Text,
+    'longitude' : IDL.Float64,
+    'rewarded' : IDL.Bool,
+    'timestamp' : IDL.Nat64,
+    'first_name' : IDL.Opt(IDL.Text),
+    'last_name' : IDL.Opt(IDL.Text),
+    'weather' : IDL.Text,
+  });
   const UserSubmission = IDL.Record({
     'status' : PostStatus,
     'data_id' : IDL.Nat64,
@@ -155,6 +172,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(VoteSummary)],
         ['query'],
       ),
+    'get_paid_submission_map_by_city' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(SubmissionInfo)))],
+        ['query'],
+      ),
     'get_post_status' : IDL.Func([IDL.Nat64], [IDL.Text], []),
     'get_rewarded_submissions' : IDL.Func(
         [IDL.Text],
@@ -184,6 +206,11 @@ export const idlFactory = ({ IDL }) => {
           }),
         ],
         [],
+      ),
+    'get_submission_map_by_city' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Vec(SubmissionInfo)))],
+        ['query'],
       ),
     'get_submissions_by_challenge' : IDL.Func(
         [IDL.Nat64],
