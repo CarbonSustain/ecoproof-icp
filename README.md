@@ -19,6 +19,7 @@
   # ONE COMMAND
   # cargo clean && cargo update && pkill -f dfx && dfx stop && ./deploy.sh
   # ngrok http 4943
+  # save url to aws
 
   # if edited Candid UI
   # dfx generate && dfx deploy
